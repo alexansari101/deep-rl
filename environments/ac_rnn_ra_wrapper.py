@@ -68,6 +68,10 @@ class AC_rnn_ra_Wrapper():
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
                                                     + str(name))
 
+        self.flags = {'render':False,
+                      'train':True,
+                      'verbose':False}
+
     def train(self,rollout,bootstrap_value):
         rollout = np.array(rollout)
         observations = rollout[:,0]
@@ -119,15 +123,15 @@ class AC_rnn_ra_Wrapper():
     # Returns the current environment state
     def render_meta_state(self, g):
         if self.im is None:
-            im = plt.imshow(self.getState())
+            self.im = plt.imshow(self.getState())
             plt.ion()
 
         s = self.getState()
         m_s = self.get_meta_state(s,self.get_mask(g))
         image = self.visualize_meta_state(m_s)
-        im.set_data(image)
+        self.im.set_data(image)
         plt.pause(0.0001)
-        plt.show()
+        plt.draw()
         return image
 
     def render(self):
@@ -176,7 +180,10 @@ class AC_rnn_ra_Wrapper():
             r += 0.35*np.exp(-f_diff)
             if r > 0:
                 done = True
-        return np.clip(r,-1,1), done
+        i_r = np.clip(r,-1,1)
+        if(self.flags['verbose']):
+            print('intrinsic reward: ' + str(i_r))
+        return i_r, done
 
     def get_meta_state(self,s,g):
         """compute the 4 channel meta-state from meta-action (goal / option)
@@ -200,8 +207,15 @@ class AC_rnn_ra_Wrapper():
         sf[:,:,1] /= np.max(sf[:,:,1])
         return sf
 
-    # Taking a step is equivalent to running an episode with a meta-goal
-    def step(self,g):
+    def step(self,m_a):
+        """Take a step in this meta_environment
+        This single meta_step involves possibly many steps in the environment
+        Parameters
+        ==========
+        m_a: an action of the meta_agent, which is also a goal of this sub agent
+           Current this is an input to the get_mask() function
+        """
+        
         if self.sess is None: # I cannot init before the sess exists
             self.sess = tf.get_default_session()
         self.sess.run(self.update_local_ops)
@@ -215,7 +229,7 @@ class AC_rnn_ra_Wrapper():
         m_r = 0
         a = np.array([0]*self.a_size)        
         s = self.env.getState() # The meta-agent is responsible for resetting
-        g = self.get_mask(g)
+        g = self.get_mask(m_a)
         s = self.get_meta_state(s,g)
         s0 = s[:,:,:-1].copy()
         episode_frames.append(self.visualize_meta_state(s))        
@@ -235,10 +249,14 @@ class AC_rnn_ra_Wrapper():
                                            self.local_AC.state_out], 
                                           feed_dict=feed_dict)
                     
+            
             s1,f,m_d = self.env.step(a)
             m_r += f
             s1 = self.get_meta_state(s1,g)
             episode_frames.append(self.visualize_meta_state(s1))
+
+            if(self.flags['render']):
+                self.render_meta_state(m_a)
 
             # ARA - todo: make into internal critic or provide a env. wrapper
             i_r,d = self.intrinsic_reward(s,a,s1,f,g)
@@ -258,7 +276,8 @@ class AC_rnn_ra_Wrapper():
             # buffer is full, then we make an update step using
             # that experience rollout.
             if len(episode_buffer) == self.update_ival and d != True and \
-               episode_step_count != self.max_episode_length - 1:
+               episode_step_count != self.max_episode_length - 1 and \
+                                     self.flags['train']:
                 # Since we don't know what the true final return
                 # is, we "bootstrap" from our current value
                 # estimation.
@@ -279,7 +298,8 @@ class AC_rnn_ra_Wrapper():
                 
         # Update the network using the experience buffer at the
         # end of the episode.
-        if len(episode_buffer) != 0:
+        if len(episode_buffer) != 0 and \
+           self.flags['train']:
             v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,0.0)
             # ARA - todo: store statistics for summary writer.
 

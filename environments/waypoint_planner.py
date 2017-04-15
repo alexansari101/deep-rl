@@ -105,11 +105,11 @@ class gameEnv():
 
     def render(self):
         if self.im is None:
-            im = plt.imshow(self.getState())
+            self.im = plt.imshow(self.getState())
             plt.ion()
 
         image = self.getState()
-        im.set_data(image)
+        self.im.set_data(image)
         # plt.draw()
         plt.pause(0.0001)
         plt.show()
