@@ -207,6 +207,11 @@ class AC_rnn_ra_Wrapper():
         sf[:,:,1] /= np.max(sf[:,:,1])
         return sf
 
+    #TODO Pull out tensor flow calculations from step, as a precursor to pulling out model from
+    # this env wrapper
+    def init_episode():
+        self.rnn_state = self.local_AC.state_init
+    
     def step(self,m_a):
         """Take a step in this meta_environment
         This single meta_step involves possibly many steps in the environment
@@ -218,6 +223,12 @@ class AC_rnn_ra_Wrapper():
         
         if self.sess is None: # I cannot init before the sess exists
             self.sess = tf.get_default_session()
+            # summary = tf.Summary().add_graph(sess.graph)
+            self.summary_writer.add_graph(self.sess.graph)
+            # self.summary_writer.flush()
+
+
+            
         self.sess.run(self.update_local_ops)
         episode_buffer = []
         episode_values = []
