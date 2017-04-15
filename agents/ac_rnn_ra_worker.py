@@ -135,6 +135,15 @@ class AC_rnn_ra_Worker():
         
     def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
              coord,saver):
+        """Steps through an env, train a network, and periodically updates a global network
+        This is intended to be run in a separate thread.
+         
+        Parameters
+        =============================
+        global_AC: unused
+         
+        """
+        
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
         print("Starting worker " + str(self.number))
@@ -220,7 +229,7 @@ class AC_rnn_ra_Worker():
                     if episode_count % 500 == 0 and self.name == 'worker_0':
                         saver.save(sess,self.model_path+'/model-'
                                    +str(episode_count)+'.cptk')
-                        print("Saved Model")
+                        print("Saved Model " + str(episode_count))
 
                     mean_reward = np.mean(self.episode_rewards[-5:])
                     mean_length = np.mean(self.episode_lengths[-5:])
