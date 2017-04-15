@@ -28,6 +28,8 @@ Todo:
 
 import numpy as np
 import tensorflow as tf
+import time
+from datetime import timedelta
 
 from util import update_target_graph, process_frame, discount
 from agents.ac_network import AC_Network
@@ -111,6 +113,7 @@ class AC_Worker():
              coord,saver):
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
+        t0 = time.time()
         print("Starting worker " + str(self.number))
         with sess.as_default(), sess.graph.as_default():                 
             while not coord.should_stop():
@@ -176,13 +179,14 @@ class AC_Worker():
                 if len(episode_buffer) != 0:
                     v_l,p_l,e_l,g_n,v_n = self.train(global_AC,episode_buffer,
                                                      sess,gamma,lam,0.0)
+                if episode_count % 500 == 0 and self.name == 'worker_0':
+                    saver.save(sess,self.model_path+'/model-'
+                               +str(episode_count)+'.cptk')
+                    s_dt = str(timedelta(seconds=time.time()-t0))
+                    print("Saved Model " + str(episode_count) + '\tat time ' + s_dt)
                     
                 # Periodically save model parameters, and summary statistics.
                 if episode_count % 5 == 0 and episode_count != 0:
-                    if episode_count % 500 == 0 and self.name == 'worker_0':
-                        saver.save(sess,self.model_path+'/model-'
-                                   +str(episode_count)+'.cptk')
-                        print("Saved Model")
 
                     mean_reward = np.mean(self.episode_rewards[-5:])
                     mean_length = np.mean(self.episode_lengths[-5:])
