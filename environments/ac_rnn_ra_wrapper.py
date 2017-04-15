@@ -39,7 +39,7 @@ class AC_rnn_ra_Wrapper():
         self.s_shape = s_shape
         self.a_size = a_size
         # self.trainer = trainer
-        # self.model_path = model_path
+        self.model_path = model_path
         self.global_episodes = global_episodes
         # self.increment = self.global_episodes.assign_add(1)
         # self.summary_writer = summary_writer  ???
@@ -49,6 +49,7 @@ class AC_rnn_ra_Wrapper():
         self.gamma = gamma
         self.lam = lam
         self.sess = None
+        self.saver = tf.train.Saver(max_to_keep=5)
 
         self.episode_rewards = []
         self.episode_lengths = []
@@ -258,11 +259,10 @@ class AC_rnn_ra_Wrapper():
 
         episode_count = self.sess.run(self.global_episodes)
 
-        # if episode_count % 500 == 0 and self.name == 'worker_0':
-        #     saver.save(sess,self.model_path+'/model-subagent-'
-        #                +str(episode_count)+'.cptk')
-        #     s_dt = str(timedelta(seconds=time.time()-t0))
-        #     print("Saved AC RNN Environment Model " + str(episode_count) + '\tat time ' + s_dt)
+        if episode_count % 500 == 0 and self.name == 'wrapper_0':
+            self.saver.save(self.sess,self.model_path+'/model-subagent-'
+                       +str(episode_count)+'.cptk')
+            print("Saved AC RNN Environment Model " + str(episode_count))
         
 
         if episode_count % 50 == 0 and episode_count != 0:
