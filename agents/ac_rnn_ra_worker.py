@@ -232,7 +232,7 @@ class AC_rnn_ra_Worker():
                     saver.save(sess,self.model_path+'/model-'
                                +str(episode_count)+'.cptk')
                     s_dt = str(timedelta(seconds=time.time()-t0))
-                    print("Saved Model " + str(episode_count) + '\tat time ' + s_dt)
+                    print("Saved AC RNN RA Model " + str(episode_count) + '\tat time ' + s_dt)
 
                 if episode_count % 50 == 0 and episode_count != 0:
 
