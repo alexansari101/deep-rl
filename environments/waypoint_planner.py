@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+
+""" Game Enviornment for a waypoint planner
+This environment has multiple waypoints
+Rewards are received after all waypoints have been traversed
+
+TODO currenlty only one waypoint
+"""
+
 import numpy as np
 import scipy.misc
 import matplotlib.pyplot as plt
@@ -10,7 +19,7 @@ def genNumber(num):
 
     
         
-class WaypointPlanner():
+class gameEnv():
     """Environment definition for hierarchical RL"""
     
     def __init__(self,v_max=1.0,a_max=1.0):        

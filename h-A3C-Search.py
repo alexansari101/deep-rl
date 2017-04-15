@@ -26,7 +26,8 @@ import tensorflow as tf
 import threading
 import multiprocessing
 
-from environments.hregion_search import gameEnv
+# from environments.hregion_search import gameEnv
+from environments.waypoint_planner import gameEnv
 from environments.ac_rnn_ra_wrapper import AC_rnn_ra_Wrapper
 from agents.ac_network import AC_Network
 from agents.ac_rnn_ra_network import AC_rnn_ra_Network
@@ -71,7 +72,7 @@ with tf.device("/cpu:0"):
     for i in range(num_workers):
         m_env = AC_rnn_ra_Wrapper(gameEnv(**gameArgs),i,s_shape,a_size,
                                   trainer,global_episodes,max_episode_length,
-                                  update_ival,gamma,lam)
+                                  update_ival,gamma,lam, model_path)
         workers.append(AC_Worker(m_env,i,m_s_shape,m_a_size,trainer,
                                  model_path,global_episodes))
     saver = tf.train.Saver(max_to_keep=5)

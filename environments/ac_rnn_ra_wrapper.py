@@ -30,7 +30,8 @@ class AC_rnn_ra_Wrapper():
     def __init__(self,game,name,s_shape,a_size,trainer,
                  global_episodes, # args to Worker.init(...)
                  # args to Worker.work(...)
-                 max_episode_length,update_ival,gamma,lam):
+                 max_episode_length,update_ival,gamma,lam,
+                 model_path):
 
         self.env = game
         # ARA - todo: generalize this
@@ -39,7 +40,7 @@ class AC_rnn_ra_Wrapper():
         self.a_size = a_size
         # self.trainer = trainer
         # self.model_path = model_path
-        # self.global_episodes = global_episodes
+        self.global_episodes = global_episodes
         # self.increment = self.global_episodes.assign_add(1)
         # self.summary_writer = summary_writer  ???
         
@@ -52,13 +53,17 @@ class AC_rnn_ra_Wrapper():
         self.episode_rewards = []
         self.episode_lengths = []
         self.episode_mean_values = []
+        self.total_step_count = 0
 
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
         self.local_AC = AC_rnn_ra_Network(s_shape,a_size,self.name,
                                           trainer,hlvl=1)
         # todo: 'global' -> ?
-        self.update_local_ops = update_target_graph('global_1',self.name) 
+        self.update_local_ops = update_target_graph('global_1',self.name)
+
+        self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
+                                                    + str(name))
 
     def train(self,rollout,bootstrap_value):
         rollout = np.array(rollout)
@@ -109,8 +114,11 @@ class AC_rnn_ra_Wrapper():
         return self.env.reset()
 
     # Returns the current environment state
-    def renderEnv(self):
-        return self.env.renderEnv()
+    def render(self):
+        return self.env.render()
+
+    def getState(self):
+        return self.env.getState()
 
     # compute meta-agent reward
     def meta_reward(self,s,g,sp):
@@ -152,7 +160,7 @@ class AC_rnn_ra_Wrapper():
             r += 0.35*np.exp(-f_diff)
             if r > 0:
                 done = True
-        return r, done
+        return np.clip(r,-1,1), done
 
     def get_meta_state(self,s,g):
         # compute the meta-state from meta-action (goal / option)
@@ -178,7 +186,7 @@ class AC_rnn_ra_Wrapper():
         d = False
         r = 0
         a = np.array([0]*self.a_size)        
-        s = self.env.renderEnv() # The meta-agent is responsible for resetting
+        s = self.env.getState() # The meta-agent is responsible for resetting
         g = self.get_mask(g)
         s = self.get_meta_state(s,g)
         s0 = s[:,:,:-1].copy()
@@ -215,6 +223,7 @@ class AC_rnn_ra_Wrapper():
             episode_reward += r
             s = s1                    
             episode_step_count += 1
+            self.total_step_count += 1
                                         
             # If the episode hasn't ended, but the experience
             # buffer is full, then we make an update step using
@@ -246,6 +255,44 @@ class AC_rnn_ra_Wrapper():
             # ARA - todo: store statistics for summary writer.
 
         m_r = self.meta_reward(s0,g,s[:,:,:-1])
+
+        episode_count = self.sess.run(self.global_episodes)
+
+        # if episode_count % 500 == 0 and self.name == 'worker_0':
+        #     saver.save(sess,self.model_path+'/model-subagent-'
+        #                +str(episode_count)+'.cptk')
+        #     s_dt = str(timedelta(seconds=time.time()-t0))
+        #     print("Saved AC RNN Environment Model " + str(episode_count) + '\tat time ' + s_dt)
+        
+
+        if episode_count % 50 == 0 and episode_count != 0:
+
+            mean_reward = np.mean(self.episode_rewards[-5:])
+            mean_length = np.mean(self.episode_lengths[-5:])
+            mean_value = np.mean(self.episode_mean_values[-5:])
+
+            summary = tf.Summary()
+            summary.value.add(tag='Subagent/Perf/Length',
+                              simple_value=float(mean_length))
+            summary.value.add(tag='Subagent/Perf/Intrinsic Reward',
+                              simple_value=float(mean_reward))
+            summary.value.add(tag='Subagent/Perf/Value',
+                              simple_value=float(mean_value))
+            summary.value.add(tag='Subagent/Perf/Total Step Count',
+                              simple_value=float(self.total_step_count))
+            summary.value.add(tag='Subagent/Losses/Value Loss',
+                              simple_value=float(v_l))
+            summary.value.add(tag='Subagent/Losses/Policy Loss',
+                              simple_value=float(p_l))
+            summary.value.add(tag='Subagent/Losses/Entropy',
+                              simple_value=float(e_l))
+            summary.value.add(tag='Subagent/Losses/Grad Norm',
+                              simple_value=float(g_n))
+            summary.value.add(tag='Subagent/Losses/Var Norm',
+                              simple_value=float(v_n))
+            self.summary_writer.add_summary(summary, episode_count)
+            self.summary_writer.flush()
+                    
 
         # ARA - todo: check if max meta-episodes is reached in meta-agent
         #       only send a done (m_d) signal if inner env. needs resetting.
