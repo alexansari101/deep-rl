@@ -50,6 +50,7 @@ class AC_rnn_ra_Wrapper():
         self.lam = lam
         self.sess = None
         self.saver = tf.train.Saver(max_to_keep=5)
+        self.im = None
 
         self.episode_rewards = []
         self.episode_lengths = []
@@ -115,6 +116,19 @@ class AC_rnn_ra_Wrapper():
         return self.env.reset()
 
     # Returns the current environment state
+    def render_meta_state(self, g):
+        if self.im is None:
+            im = plt.imshow(self.getState())
+            plt.ion()
+
+        s = self.getState()
+        m_s = get_meta_state(self,s,self.get_mask(g))
+
+        im.set_data(m_s)
+        plt.pause(0.0001)
+        plt.show()
+        return image
+
     def render(self):
         return self.env.render()
 
@@ -164,11 +178,22 @@ class AC_rnn_ra_Wrapper():
         return np.clip(r,-1,1), done
 
     def get_meta_state(self,s,g):
-        # compute the meta-state from meta-action (goal / option)
+        """compute the 4 channel meta-state from meta-action (goal / option)
+        Parameters
+        ==========
+        s: the raw state
+        g: the goal mask
+        """
         return np.dstack([process_frame(s),g]) # stack state and goal
 
     def visualize_meta_state(self,s):
-        # return a 3-channel state frame for policy visulaization
+        """
+        return a 3-channel state frame for policy visulaization
+        Parameters
+        ==========
+        s: a 4 channel state where the last channel is the meta_goal
+        """
+
         sf = s[:,:,:-1].copy()
         sf[:,:,2] += 0.5*s[:,:,-1]
         sf[:,:,2] /= np.max(sf[:,:,2])
@@ -185,7 +210,8 @@ class AC_rnn_ra_Wrapper():
         episode_reward = 0
         episode_step_count = 0
         d = False
-        r = 0
+        i_r = 0
+        m_r = 0
         a = np.array([0]*self.a_size)        
         s = self.env.getState() # The meta-agent is responsible for resetting
         g = self.get_mask(g)
@@ -199,7 +225,7 @@ class AC_rnn_ra_Wrapper():
             # network output.
             feed_dict={self.local_AC.inputs:[s],
                        self.local_AC.prev_actions:[a],
-                       self.local_AC.prev_rewards:[[r]],
+                       self.local_AC.prev_rewards:[[i_r]],
                        self.local_AC.is_training_ph:False,
                        self.local_AC.state_in[0]:rnn_state[0],
                        self.local_AC.state_in[1]:rnn_state[1]}
@@ -208,20 +234,21 @@ class AC_rnn_ra_Wrapper():
                                            self.local_AC.state_out], 
                                           feed_dict=feed_dict)
                     
-            s1,f,m_d = self.env.step(a)            
+            s1,f,m_d = self.env.step(a)
+            m_r += f
             s1 = self.get_meta_state(s1,g)
             episode_frames.append(self.visualize_meta_state(s1))
 
             # ARA - todo: make into internal critic or provide a env. wrapper
-            r,d = self.intrinsic_reward(s,a,s1,f,g)
+            i_r,d = self.intrinsic_reward(s,a,s1,f,g)
             
             if episode_step_count == self.max_episode_length-1:
                 d = True
                         
-            episode_buffer.append([s,a,r,s1,d,v[0,0]])
+            episode_buffer.append([s,a,i_r,s1,d,v[0,0]])
             episode_values.append(v[0,0])
 
-            episode_reward += r
+            episode_reward += i_r
             s = s1                    
             episode_step_count += 1
             self.total_step_count += 1
@@ -237,7 +264,7 @@ class AC_rnn_ra_Wrapper():
                 v1 = self.sess.run(self.local_AC.value, 
                     feed_dict={self.local_AC.inputs:[s],
                                self.local_AC.prev_actions:[a],
-                               self.local_AC.prev_rewards:[[r]],
+                               self.local_AC.prev_rewards:[[i_r]],
                                self.local_AC.is_training_ph:False,
                                self.local_AC.state_in[0]:rnn_state[0],
                                self.local_AC.state_in[1]:rnn_state[1]})[0,0]
@@ -255,11 +282,12 @@ class AC_rnn_ra_Wrapper():
             v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,0.0)
             # ARA - todo: store statistics for summary writer.
 
-        m_r = self.meta_reward(s0,g,s[:,:,:-1])
+        #instead use m_r directly from environment
+        # m_r = self.meta_reward(s0,g,s[:,:,:-1])
 
         episode_count = self.sess.run(self.global_episodes)
 
-        if episode_count % 500 == 0 and self.name == 'wrapper_0':
+        if episode_count % 5000 == 0 and self.name == 'wrapper_0':
             self.saver.save(self.sess,self.model_path+'/model-subagent-'
                        +str(episode_count)+'.cptk')
             print("Saved AC RNN Environment Model " + str(episode_count))
