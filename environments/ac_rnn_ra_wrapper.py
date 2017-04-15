@@ -18,6 +18,7 @@ Todo:
 
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 from util import update_target_graph, process_frame, discount
 from agents.ac_rnn_ra_network import AC_rnn_ra_Network
@@ -122,9 +123,9 @@ class AC_rnn_ra_Wrapper():
             plt.ion()
 
         s = self.getState()
-        m_s = get_meta_state(self,s,self.get_mask(g))
-
-        im.set_data(m_s)
+        m_s = self.get_meta_state(s,self.get_mask(g))
+        image = self.visualize_meta_state(m_s)
+        im.set_data(image)
         plt.pause(0.0001)
         plt.show()
         return image
@@ -195,8 +196,8 @@ class AC_rnn_ra_Wrapper():
         """
 
         sf = s[:,:,:-1].copy()
-        sf[:,:,2] += 0.5*s[:,:,-1]
-        sf[:,:,2] /= np.max(sf[:,:,2])
+        sf[:,:,1] += 0.5*s[:,:,-1]
+        sf[:,:,1] /= np.max(sf[:,:,1])
         return sf
 
     # Taking a step is equivalent to running an episode with a meta-goal
