@@ -169,6 +169,9 @@ class AC_rnn_ra_Wrapper():
         sp: state/255 after taking action
         f: extrinsic reward
         g: current goal
+        Returns:
+        intrinsic_reward: reward based on agreement with the meta goal
+        done: Terminal wrapped_env?
         """
         done = False
         r = -0.05
@@ -178,13 +181,15 @@ class AC_rnn_ra_Wrapper():
             r = -10
         elif np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
              and np.sum(g.astype(bool)*sp[:,:,2]) > 3.5:
-            f_diff = np.sum(sp[:,:,2]-s[:,:,2])/4
-            r += 0.35*np.exp(-f_diff)
-            if r > 0:
-                done = True
+            # f_diff = np.sum(sp[:,:,2]-s[:,:,2])/4
+            # r += 0.35*np.exp(-f_diff)
+            r = 1
+            done = True
+            # if r > 0:
+            #     done = True
         i_r = np.clip(r,-1,1)
-        if(self.flags['verbose']):
-            print('intrinsic reward: ' + str(i_r))
+        # if(self.flags['verbose']):
+        #     print('intrinsic reward: ' + str(i_r))
         return i_r, done
 
     def get_meta_state(self,s,g):
@@ -306,6 +311,8 @@ class AC_rnn_ra_Wrapper():
                 episode_buffer = []
                 self.sess.run(self.update_local_ops)
 
+        if(self.flags['verbose']):
+            print('intrisic episode reward: ' + str(episode_reward))
         self.episode_rewards.append(episode_reward)
         self.episode_lengths.append(episode_step_count)
         self.episode_mean_values.append(np.mean(episode_values))
@@ -317,44 +324,36 @@ class AC_rnn_ra_Wrapper():
             v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,0.0)
             # ARA - todo: store statistics for summary writer.
 
-        #instead use m_r directly from environment
-        # m_r = self.meta_reward(s0,g,s[:,:,:-1])
 
-        episode_count = self.sess.run(self.global_episodes)
+            episode_count = self.sess.run(self.global_episodes)
 
-        # if episode_count % 5000 == 0 and self.name == 'wrapper_0':
-            # self.saver.save(self.sess,self.model_path+'/model-subagent-'
-            #            +str(episode_count)+'.cptk')
-            # print("Saved AC RNN Environment Model " + str(episode_count))
-        
+            if episode_count % 50 == 0 and episode_count != 0:
 
-        if episode_count % 50 == 0 and episode_count != 0:
-
-            mean_reward = np.mean(self.episode_rewards[-5:])
-            mean_length = np.mean(self.episode_lengths[-5:])
-            mean_value = np.mean(self.episode_mean_values[-5:])
-
-            summary = tf.Summary()
-            summary.value.add(tag='Subagent/Perf/Length',
-                              simple_value=float(mean_length))
-            summary.value.add(tag='Subagent/Perf/Intrinsic Reward',
-                              simple_value=float(mean_reward))
-            summary.value.add(tag='Subagent/Perf/Value',
-                              simple_value=float(mean_value))
-            summary.value.add(tag='Subagent/Perf/Total Step Count',
-                              simple_value=float(self.total_step_count))
-            summary.value.add(tag='Subagent/Losses/Value Loss',
+                mean_reward = np.mean(self.episode_rewards[-5:])
+                mean_length = np.mean(self.episode_lengths[-5:])
+                mean_value = np.mean(self.episode_mean_values[-5:])
+                
+                summary = tf.Summary()
+                summary.value.add(tag='Subagent/Perf/Length',
+                                  simple_value=float(mean_length))
+                summary.value.add(tag='Subagent/Perf/Intrinsic Reward',
+                                  simple_value=float(mean_reward))
+                summary.value.add(tag='Subagent/Perf/Value',
+                                  simple_value=float(mean_value))
+                summary.value.add(tag='Subagent/Perf/Total Step Count',
+                                  simple_value=float(self.total_step_count))
+                summary.value.add(tag='Subagent/Losses/Value Loss',
                               simple_value=float(v_l))
-            summary.value.add(tag='Subagent/Losses/Policy Loss',
-                              simple_value=float(p_l))
-            summary.value.add(tag='Subagent/Losses/Entropy',
-                              simple_value=float(e_l))
-            summary.value.add(tag='Subagent/Losses/Grad Norm',
-                              simple_value=float(g_n))
-            summary.value.add(tag='Subagent/Losses/Var Norm',
-                              simple_value=float(v_n))
-            self.summary_writer.add_summary(summary, episode_count)
-            self.summary_writer.flush()
+                summary.value.add(tag='Subagent/Losses/Policy Loss',
+                                  simple_value=float(p_l))
+                summary.value.add(tag='Subagent/Losses/Entropy',
+                                  simple_value=float(e_l))
+                summary.value.add(tag='Subagent/Losses/Grad Norm',
+                                  simple_value=float(g_n))
+                summary.value.add(tag='Subagent/Losses/Var Norm',
+                                  simple_value=float(v_n))
+                self.summary_writer.add_summary(summary, episode_count)
+                self.summary_writer.flush()
                     
 
         # ARA - todo: check if max meta-episodes is reached in meta-agent
