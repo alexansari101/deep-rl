@@ -108,6 +108,29 @@ class AC_Worker():
                                           self.local_AC.apply_grads],
                                          feed_dict=feed_dict)
         return v_l/len(rollout),p_l/len(rollout),e_l/len(rollout),g_n,v_n
+
+    def evaluate(self, sess):
+        episode_count = sess.run(self.global_episodes)
+        s = self.env.reset()
+        s = process_frame(s)
+        d = False
+        r = 0
+        episode_r = 0
+
+        self.env.flags['render'] = True
+        self.env.flags['train'] = False
+        self.env.flags['verbose'] = True
+        
+        while d == False:
+            a_dist,v = sess.run([self.local_AC.policy,
+                                 self.local_AC.value], 
+                                feed_dict={self.local_AC.inputs:[s]})
+            a = np.random.choice(a_dist[0],p=a_dist[0])
+            a = np.argmax(a_dist == a)
+            s1,r,d = self.env.step(a)
+            episode_r += r
+        print('episode reward: ' + str(episode_r))
+            
         
     def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
              coord,saver):
