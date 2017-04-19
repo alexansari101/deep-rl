@@ -179,11 +179,12 @@ class AC_Worker():
                 if len(episode_buffer) != 0:
                     v_l,p_l,e_l,g_n,v_n = self.train(global_AC,episode_buffer,
                                                      sess,gamma,lam,0.0)
-                if episode_count % 500 == 0 and self.name == 'worker_0':
-                    saver.save(sess,self.model_path+'/model-'
-                               +str(episode_count)+'.cptk')
+                if episode_count % 5000 == 0 and self.name == 'worker_0':
+                    saver.save(sess,self.model_path+'/model.ckpt', episode_count)
+                    
                     s_dt = str(timedelta(seconds=time.time()-t0))
                     print("Saved Model " + str(episode_count) + '\tat time ' + s_dt)
+
                     
                 # Periodically save model parameters, and summary statistics.
                 if episode_count % 5 == 0 and episode_count != 0:
@@ -198,6 +199,8 @@ class AC_Worker():
                                       simple_value=float(mean_length))
                     summary.value.add(tag='Perf/Value',
                                       simple_value=float(mean_value))
+                    summary.value.add(tag='Perf/Global Episodes',
+                                      simple_value=float(sess.run(self.global_episodes)))
                     summary.value.add(tag='Losses/Value Loss',
                                       simple_value=float(v_l))
                     summary.value.add(tag='Losses/Policy Loss',

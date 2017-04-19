@@ -70,7 +70,7 @@ def main():  # noqa: D103
 
         num_workers = multiprocessing.cpu_count() # number of available CPU threads
         workers = []
-        saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)
+
         
         for i in range(num_workers):
             env = load_env(args.env)
@@ -80,23 +80,28 @@ def main():  # noqa: D103
             workers.append(AC_Worker(m_env,i,m_s_shape,m_a_size,m_trainer,
                                      args.output,global_episodes))
             
-
+        saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)
     with tf.Session() as sess:
-        coord = tf.train.Coordinator()
+
 
         # sess.run(tf.global_variables_initializer())
         # init_adam = tf.initialize_variables([trainer])
         # sess.run(init_adam)
         if args.load:
-            print('Loading Model ' + args.output)
+            # print('Loading Model ' + args.output)
             ckpt = tf.train.get_checkpoint_state(args.output)
+            print('Loading Model ' + ckpt.model_checkpoint_path)
             saver.restore(sess,ckpt.model_checkpoint_path)
-            # print(list(tf.get_variable(name) for name in sess.run(tf.report_uninitialized_variables(tf.global_variables()))))
-            
+            # for var in tf.global_variables():
+            #     try:
+            #         sess.run(var)
+            #     except tf.errors.FailedPreconditionError:
+            #         print(str(var) + ': UNUSABLE')
         else:
             sess.run(tf.global_variables_initializer())
+            
         worker_threads = []
-        
+        coord = tf.train.Coordinator()        
         for worker in workers:
             worker_work = lambda: worker.work(m_max_episode_length,update_ival,gamma,
                                               lam,master_network,sess,coord,saver)

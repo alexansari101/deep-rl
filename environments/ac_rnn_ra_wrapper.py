@@ -50,7 +50,7 @@ class AC_rnn_ra_Wrapper():
         self.gamma = gamma
         self.lam = lam
         self.sess = None
-        self.saver = tf.train.Saver(max_to_keep=5)
+        # self.saver = tf.train.Saver(max_to_keep=5)
         self.im = None
 
         self.episode_rewards = []
@@ -107,6 +107,7 @@ class AC_rnn_ra_Wrapper():
                      self.local_AC.advantages:advantages,
                      self.local_AC.state_in[0]:rnn_state[0],
                      self.local_AC.state_in[1]:rnn_state[1]}
+
         v_l,p_l,e_l,g_n,v_n,_ = self.sess.run([self.local_AC.value_loss,
                                                self.local_AC.policy_loss,
                                                self.local_AC.entropy,
@@ -114,6 +115,7 @@ class AC_rnn_ra_Wrapper():
                                                self.local_AC.var_norms,
                                                self.local_AC.apply_grads],
                                               feed_dict=feed_dict)
+
         return v_l/len(rollout),p_l/len(rollout),e_l/len(rollout),g_n,v_n
 
     # Runs after episode completion. Perform a training op. Update graphs.
@@ -220,14 +222,15 @@ class AC_rnn_ra_Wrapper():
         m_a: an action of the meta_agent, which is also a goal of this sub agent
            Current this is an input to the get_mask() function
         """
-        
+
+
         if self.sess is None: # I cannot init before the sess exists
             self.sess = tf.get_default_session()
             # summary = tf.Summary().add_graph(sess.graph)
             self.summary_writer.add_graph(self.sess.graph)
             # self.summary_writer.flush()
 
-
+        
             
         self.sess.run(self.update_local_ops)
         episode_buffer = []
@@ -319,10 +322,10 @@ class AC_rnn_ra_Wrapper():
 
         episode_count = self.sess.run(self.global_episodes)
 
-        if episode_count % 5000 == 0 and self.name == 'wrapper_0':
-            self.saver.save(self.sess,self.model_path+'/model-subagent-'
-                       +str(episode_count)+'.cptk')
-            print("Saved AC RNN Environment Model " + str(episode_count))
+        # if episode_count % 5000 == 0 and self.name == 'wrapper_0':
+            # self.saver.save(self.sess,self.model_path+'/model-subagent-'
+            #            +str(episode_count)+'.cptk')
+            # print("Saved AC RNN Environment Model " + str(episode_count))
         
 
         if episode_count % 50 == 0 and episode_count != 0:
