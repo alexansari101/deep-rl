@@ -15,7 +15,7 @@ def get_last_experiment(parent_dir, env_name):
     return experiment_id
 
 
-def get_output_folder(parent_dir, env_name):
+def get_output_folder(parent_dir, env_name, load, trial=None):
     """Return save folder.
 
     Assumes folders in the parent_dir have suffix -run{run
@@ -35,16 +35,21 @@ def get_output_folder(parent_dir, env_name):
       Path to this run's save directory.
     """
     os.makedirs(parent_dir, exist_ok=True)
-    experiment_id = get_last_experiment(parent_dir, env_name) + 1
-
+    if trial is None:
+        trial = get_last_experiment(parent_dir, env_name)
+        if not load:
+            trial += 1
+            print('Starting new trial ' + str(trial))
+        
     parent_dir = os.path.join(parent_dir, env_name)
-    parent_dir = parent_dir + '-run{}'.format(experiment_id)
-    print('starting new trial ' + parent_dir)
+    parent_dir = parent_dir + '-run{}'.format(trial)
+
     return parent_dir
 
 def get_saved(parent_dir, env_name, exp_id=None, iter_num=None):
     """Loads the model and hyperparams. By default, uses the last available data
     """
+    # print('getting saved')
     if exp_id is None:
         exp_id = get_last_experiment(parent_dir, env_name)
         
@@ -64,7 +69,7 @@ def get_saved(parent_dir, env_name, exp_id=None, iter_num=None):
             if iter_num is None or \
                f_iter > iter_num:
                 iter_num = f_iter
-        print('load last iteration: ' + str(iter_num))
+        print('Load last iteration: ' + str(iter_num))
                
             # print(f_iter)
 
