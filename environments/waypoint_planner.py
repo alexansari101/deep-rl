@@ -84,23 +84,55 @@ class gameEnv():
         self.hero[2] = v_m * np.tanh(vy/v_m)
         return penalize
 
+    def borderCollision(self):
+        """Returns true if the hero has collided with the border"""
+        width = self.width
+        hy,hx = np.round(self.hero[:2]).astype(int)
+
+        # if hx+width > 100:
+        #     #Trying to debug overflow error
+        #     print(hx+width)
+        np.seterr(all='raise')
+        try:
+            if hx+width > 82-self.brdr or hx-width < 1+self.brdr:
+                np.seterr(all='print')
+                return True
+            if  hy+width > 82-self.brdr or hy-width < 1+self.brdr:
+                np.seterr(all='print')
+                return True
+        except:
+            print(hx)
+            print(hy)
+            print(width)
+            print(self.brdr)
+            raise
+        np.seterr(all='print')
+        return False
+    
     def checkGoal(self):
+        """Computes the reward the hero receives
+        Returns
+        =======
+        r,d
+        r: numerical reward
+        d: boolean - True if a terminal state
+        """
         hy,hx = np.round(self.hero[:2]).astype(int)
         r = 0 # -0.05
         d = False
         width = self.width
+
+        if self.borderCollision():
+            r = -1
+            # print('hit wall')
+            return r, True
+        
         for goal in self.goals:
             gy,gx = np.round(goal[:2]).astype(int)
-            if hx+width > 82-self.brdr or hx-width < 1+self.brdr:
-                r = -1.0
-                d = True
-            elif  hy+width > 82-self.brdr or hy-width < 1+self.brdr:
-                r = -1.0
-                d = True
-            else:
-                r = np.clip(np.sum(self.state[hy-width:hy+width, hx-width:hx+width,1]),0,1)
-                d = r > 0
-                
+            r = np.clip(np.sum(self.state[hy-width:hy+width, hx-width:hx+width,1]),0,1)
+            d = (r > 0) or d
+        # if d:
+        #     print('terminal, no wall. r: ' + str(r))
         return r,d
 
     def render(self):
