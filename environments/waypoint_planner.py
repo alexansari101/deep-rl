@@ -101,6 +101,8 @@ class gameEnv():
                 np.seterr(all='print')
                 return True
         except:
+            print(self.hero)
+            print(self.hero_old)
             print(hx)
             print(hy)
             print(width)
