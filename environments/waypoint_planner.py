@@ -83,7 +83,7 @@ class gameEnv():
         self.hero[3] = v_m * np.tanh(vx/v_m)
         self.hero[2] = v_m * np.tanh(vy/v_m)
 
-        if np.isnan(hero[3]):
+        if np.isnan(self.hero[3]):
             print('hero[3] is nan')
             print(a_m)
             print(v_m)
