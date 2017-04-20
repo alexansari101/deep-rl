@@ -175,18 +175,30 @@ class AC_rnn_ra_Wrapper():
         """
         done = False
         r = -0.05
+        # r = 0.0  
         # if the agent's past and present state is inside the masked region
         if f < 0:
             done = True
             r = -10
-        elif np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
+
+        #small reward for moving slowly
+        if np.sum(s[:,:,2].astype(bool)*sp[:,:,2]) > 0:
+            r += 0.05
+                
+        if np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
              and np.sum(g.astype(bool)*sp[:,:,2]) > 3.5:
             # f_diff = np.sum(sp[:,:,2]-s[:,:,2])/4
             # r += 0.35*np.exp(-f_diff)
-            r = 1
+            r += 1
             done = True
             # if r > 0:
             #     done = True
+        # elif overlap(s[:,:,2],g) == 1 and overlap(sp[:,:,2],g) == 1:
+        #     o = overlap(s[:,:,2], sp[:,:,2])
+        #     r += f
+        #     if(o > 0 and f == 0):
+        #         r += o
+        #         done = True            
         i_r = np.clip(r,-1,1)
         # if(self.flags['verbose']):
         #     print('intrinsic reward: ' + str(i_r))
