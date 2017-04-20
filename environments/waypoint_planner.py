@@ -70,18 +70,25 @@ class gameEnv():
         
         return self.getState()
 
-    def moveChar(self,accel):        
+    def moveChar(self,accel_in):        
         self.hero_old = self.hero.copy()
         penalize = 0.0
         a_m = 10*self.a_max
         v_m = 10*self.v_max
-        accel = a_m * np.tanh(np.asarray(accel)/self.a_max)
+        accel = a_m * np.tanh(np.asarray(accel_in)/self.a_max)
         self.hero[0] += self.hero[2]
         self.hero[1] += self.hero[3]
         vx = accel[-1] + .9*self.hero[3]
         vy = accel[-2] + .9*self.hero[2]
         self.hero[3] = v_m * np.tanh(vx/v_m)
         self.hero[2] = v_m * np.tanh(vy/v_m)
+
+        if np.isnan(hero[3]):
+            print('hero[3] is nan')
+            print(a_m)
+            print(v_m)
+            print(accel)
+            print(accel_in)
         return penalize
 
     def borderCollision(self):
