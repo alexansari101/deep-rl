@@ -9,7 +9,9 @@ import multiprocessing
 from agents.ac_network import AC_Network
 from agents.ac_rnn_ra_network import AC_rnn_ra_Network
 from agents.ac_worker import AC_Worker
-
+import sys
+import curses
+import select
 
 def process_args(args):
     """ Additional proccessing for args to load the correct folders for storage"""
@@ -29,6 +31,7 @@ def load_env(env_name):
         return environments.hregion_search.gameEnv()
     
     raise ValueError('Unknown environment name: ' + str(env_name))
+
 
 
 def main():  # noqa: D103
@@ -108,7 +111,27 @@ def main():  # noqa: D103
                 workers[0].evaluate(sess)
 
         if(args.play):
-            pass
+            key_to_action = {'d':[0,1],
+                             'a':[0,-1],
+                             'w':[-1,0],
+                             's':[1,0]}
+
+            env = load_env(args.env)
+            env.reset()
+            env.render()
+            episode_r = 0
+            while True:
+                line = input('')
+                s, r, d, = env.step(key_to_action[line])
+                env.render()
+                episode_r += r
+                if d:
+                    print('final state. Episode reward: ' + str(episode_r))
+                    episode_r = 0
+                    env.reset()
+                    env.render()
+                
+
             
             
 if __name__ == '__main__':
