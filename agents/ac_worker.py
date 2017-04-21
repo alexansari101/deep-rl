@@ -62,8 +62,6 @@ class AC_Worker():
         self.trainer = trainer
         self.global_episodes = global_episodes
         self.increment = self.global_episodes.assign_add(1)
-        self.episode_rewards = []
-        self.episode_lengths = []
         self.episode_mean_values = []
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
                                                     + str(self.number))
@@ -142,7 +140,7 @@ class AC_Worker():
             while not coord.should_stop():
                 sess.run(self.update_local_ops)
                 episode_buffer = []
-                episode_values = []
+                state_values = []
                 episode_frames = []
                 episode_reward = 0
                 episode_step_count = 0
@@ -170,7 +168,7 @@ class AC_Worker():
                         d = True
                         
                     episode_buffer.append([s,a,r,s1,d,v[0,0]])
-                    episode_values.append(v[0,0])
+                    state_values.append(v[0,0])
 
                     episode_reward += r
                     s = s1                    
@@ -193,9 +191,6 @@ class AC_Worker():
                         episode_buffer = []
                         sess.run(self.update_local_ops)
 
-                self.episode_rewards.append(episode_reward)
-                self.episode_lengths.append(episode_step_count)
-                self.episode_mean_values.append(np.mean(episode_values))
                 
                 # Update the network using the experience buffer at the
                 # end of the episode.
@@ -212,16 +207,14 @@ class AC_Worker():
                 # Periodically save model parameters, and summary statistics.
                 if episode_count % 5 == 0 and episode_count != 0:
 
-                    mean_reward = np.mean(self.episode_rewards[-5:])
-                    mean_length = np.mean(self.episode_lengths[-5:])
-                    mean_value = np.mean(self.episode_mean_values[-5:])
+                    mean_state_value = np.mean(state_values)
                     summary = tf.Summary()
                     summary.value.add(tag='Perf/Reward',
-                                      simple_value=float(mean_reward))
-                    summary.value.add(tag='Perf/Length',
-                                      simple_value=float(mean_length))
-                    summary.value.add(tag='Perf/Value',
-                                      simple_value=float(mean_value))
+                                      simple_value=float(episode_reward))
+                    summary.value.add(tag='Perf/Episode Length',
+                                      simple_value=float(episode_step_count))
+                    summary.value.add(tag='Perf/Mean State Value',
+                                      simple_value=float(mean_state_value))
                     summary.value.add(tag='Perf/Global Episodes',
                                       simple_value=float(sess.run(self.global_episodes)))
                     summary.value.add(tag='Losses/Value Loss',
