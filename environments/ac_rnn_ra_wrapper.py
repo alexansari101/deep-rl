@@ -282,6 +282,7 @@ class AC_rnn_ra_Wrapper():
                     
             
             s1,f,m_d = self.env.step(a)
+            d = m_d
             m_r += f
             s1 = self.get_meta_state(s1,g)
             episode_frames.append(self.visualize_meta_state(s1))
