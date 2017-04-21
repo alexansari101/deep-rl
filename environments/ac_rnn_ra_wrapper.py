@@ -282,7 +282,7 @@ class AC_rnn_ra_Wrapper():
                     
             
             s1,f,m_d = self.env.step(a)
-            d = m_d
+
             m_r += f
             s1 = self.get_meta_state(s1,g)
             episode_frames.append(self.visualize_meta_state(s1))
@@ -291,10 +291,10 @@ class AC_rnn_ra_Wrapper():
                 self.render_meta_state(m_a)
 
             # ARA - todo: make into internal critic or provide a env. wrapper
-            i_r,d = self.intrinsic_reward(s,a,s1,f,g)
-            
-            if episode_step_count == self.max_episode_length-1:
-                d = True
+            i_r,i_d = self.intrinsic_reward(s,a,s1,f,g)
+
+            d = m_d or i_d or episode_step_count == self.max_episode_length-1
+
                         
             episode_buffer.append([s,a,i_r,s1,d,v[0,0]])
             episode_values.append(v[0,0])
