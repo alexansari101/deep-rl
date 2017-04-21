@@ -166,11 +166,11 @@ class gameEnv():
         if True:
             self.state[hero[0]-width:hero[0]+width,
                        hero[1]-width:hero[1]+width,0] = 0
-            hs = np.array(self.state[hero[0]-width:hero[0]+width,
-                                     hero[1]-width:hero[1]+width,1]).astype(float)
-            hs *= (1-np.exp(-np.linalg.norm(hero[2:])))
-            self.state[hero[0]-width:hero[0]+width,
-                       hero[1]-width:hero[1]+width,1] = hs.astype(int)
+            # hs = np.array(self.state[hero[0]-width:hero[0]+width,
+            #                          hero[1]-width:hero[1]+width,1]).astype(float)
+            # hs *= (1-np.exp(-np.linalg.norm(hero[2:])))
+            # self.state[hero[0]-width:hero[0]+width,
+            #            hero[1]-width:hero[1]+width,1] = hs.astype(int)
             
         self.state[hero[0]-width:hero[0]+width,
                    hero[1]-width:hero[1]+width,2] = 255        
