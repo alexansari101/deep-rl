@@ -10,12 +10,18 @@ TODO currenlty only one waypoint
 import numpy as np
 import scipy.misc
 import matplotlib.pyplot as plt
+import os
+from PIL import Image
 
 def genNumber(num):
     """generates a number as a numpy array image
     TODO!!!!!!!!!!!!
     Not implemented!!! Currently just returns a solid block. """
-    return 255*np.ones(4)
+    path = os.path.join(os.path.dirname(__file__))
+    path = path + '/' + str(num) + '.png'
+    im = Image.open(path).convert('L').resize((12,12), Image.ANTIALIAS)
+    # return 255*np.ones(4)
+    return (np.asarray(im) < 200)*255
 
     
         
@@ -25,7 +31,8 @@ class gameEnv():
     def __init__(self,v_max=1.0,a_max=1.0):        
         self.a_max = a_max
         self.v_max = v_max        
-        self.num_goals = 1
+        self.num_goals = 9
+        self.next_goal = 0
         self.num_obstacles = 0
         self.hero = np.zeros(4)
         self.hero_old = self.hero.copy()
@@ -41,6 +48,7 @@ class gameEnv():
         
         # add goals to background
         self.goals = []
+        self.next_goal = 0
         
         for i in range(self.num_goals):
             # WARNING: assumes high > low (may not be true)
@@ -48,14 +56,21 @@ class gameEnv():
             w = 4
             if w % 2 != 0:
                 w -= 1
-            goal = np.random.randint(self.brdr+w//2+2, 84-self.brdr-w//2+1,
+            num_width = 12
+            gc = np.random.randint(self.brdr, 84-self.brdr-num_width,
                                      size=2)
-            goal[0]=42
-            self.goals.append(np.append(goal,np.zeros(2)))
-            goal = np.round(goal).astype(int)
-            b = self.state[goal[0]-w//2:goal[0]+w//2,goal[1]-w//2:goal[1]+w//2,:]
-            b.fill(0)
-            b[:,:,1] = genNumber(i)
+            
+            goal = np.zeros((84,84))
+            # print(genNumber(i+1))
+            # print(genNumber(i+1).shape)
+            # print(goal[gc[0]:gc[0]+24, gc[1]:gc[1]+24].shape)
+            goal[gc[0]:gc[0]+num_width, gc[1]:gc[1]+num_width] = genNumber(i+1)
+
+            self.goals.append(goal)
+
+            # b = self.state[goal[0]-w//2:goal[0]+w//2,goal[1]-w//2:goal[1]+w//2,:]
+            # b.fill(0)
+            # b[:,:,1] = genNumber(i+1)
 
 
         # reset hero location
@@ -132,16 +147,18 @@ class gameEnv():
         width = self.width
 
         if self.borderCollision():
-            r = -1
-            # print('hit wall')
-            return r, True
-        
-        for goal in self.goals:
-            gy,gx = np.round(goal[:2]).astype(int)
-            r = np.clip(np.sum(self.state[hy-width:hy+width, hx-width:hx+width,1]),0,1)
-            d = (r > 0) or d
-        # if d:
-        #     print('terminal, no wall. r: ' + str(r))
+            return -1, True
+
+        goal = self.goals[self.next_goal]
+        #NEEDS EDIT
+        # gy,gx = np.round(goal[:2]).astype(int)
+        reached = np.sum(goal[hy-width:hy+width, hx-width:hx+width]) > 0.5
+        if reached:
+            self.next_goal += 1
+        if self.next_goal == len(self.goals):
+            r = 1
+            d = True
+
         return r,d
 
     def render(self):
@@ -153,29 +170,35 @@ class gameEnv():
         self.im.set_data(image)
         # plt.draw()
         plt.pause(0.0001)
-        plt.show()
+        plt.draw()
         return image
 
     def getState(self):
         width = self.width
+        state = self.state.copy()
         # render hero
         hero = np.round(self.hero).astype(int)
         hero_p = np.round(self.hero_old).astype(int)
-        self.state[hero_p[0]-width:hero_p[0]+width,
-                   hero_p[1]-width:hero_p[1]+width,2] = 0
-        if True:
-            self.state[hero[0]-width:hero[0]+width,
-                       hero[1]-width:hero[1]+width,0] = 0
+        # state[hero_p[0]-width:hero_p[0]+width,
+        #       hero_p[1]-width:hero_p[1]+width,2] = 0
+        state[hero[0]-width:hero[0]+width,
+              hero[1]-width:hero[1]+width,0] = 0
             # hs = np.array(self.state[hero[0]-width:hero[0]+width,
             #                          hero[1]-width:hero[1]+width,1]).astype(float)
             # hs *= (1-np.exp(-np.linalg.norm(hero[2:])))
             # self.state[hero[0]-width:hero[0]+width,
             #            hero[1]-width:hero[1]+width,1] = hs.astype(int)
             
-        self.state[hero[0]-width:hero[0]+width,
-                   hero[1]-width:hero[1]+width,2] = 255        
-        self.state = np.array(scipy.misc.toimage(self.state))
-        return self.state
+        state[hero[0]-width:hero[0]+width,
+              hero[1]-width:hero[1]+width,2] = 255
+
+
+        for i in range(self.next_goal, self.num_goals):
+            goal = self.goals[i]
+            state[:,:,1] += goal
+        state = np.clip(state,0,255)
+        state = np.array(scipy.misc.toimage(state))
+        return state
 
     def step(self,action):
         penalty = self.moveChar(action)
