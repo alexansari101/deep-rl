@@ -38,6 +38,7 @@ def main():  # noqa: D103
         '-o', '--output', default='trials', help='Directory to save data to')
     parser.add_argument('--seed', default=0, type=int, help='Random seed')
     parser.add_argument('--train', action='store_const', const=True)
+    parser.add_argument('--play', action='store_const', const=True, help='Manually control agent')
     parser.add_argument('--test', action='store_const', const=True)
     parser.add_argument('--load', action='store_const', const=True)
     parser.add_argument('--trial', default=None, type=int, help='The trial number to load')
@@ -60,8 +61,8 @@ def main():  # noqa: D103
 
     
     with tf.device("/cpu:0"):
-        m_trainer = tf.train.AdamOptimizer(learning_rate=0.00025) # beta1=0.99
-        trainer = tf.train.AdamOptimizer(learning_rate=0.00025) # beta1=0.99
+        m_trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
+        trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
         global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',
                                       trainable=False)
         
@@ -105,6 +106,10 @@ def main():  # noqa: D103
         if(args.test):
             for i in range(100):
                 workers[0].evaluate(sess)
+
+        if(args.play):
+            pass
+            
             
 if __name__ == '__main__':
     main()
