@@ -57,7 +57,7 @@ def main():  # noqa: D103
     lam = 1                   # .97; discount rate for advantage estimation
     s_shape = [84,84,4]       # Observations are rgb frames 84 x 84 + goal
     a_size = 2                # planar real-valued accelerations
-    m_max_episode_length = 10
+    m_max_episode_length = 20
     m_s_shape = [84,84,3]
     m_a_size = 16
     

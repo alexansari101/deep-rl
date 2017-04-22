@@ -31,7 +31,7 @@ class gameEnv():
     def __init__(self,v_max=1.0,a_max=1.0):        
         self.a_max = a_max
         self.v_max = v_max        
-        self.num_goals = 9
+        self.num_goals = 3
         self.next_goal = 0
         self.num_obstacles = 0
         self.hero = np.zeros(4)
