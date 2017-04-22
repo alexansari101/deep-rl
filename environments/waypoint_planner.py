@@ -4,7 +4,6 @@
 This environment has multiple waypoints
 Rewards are received after all waypoints have been traversed
 
-TODO currenlty only one waypoint
 """
 
 import numpy as np
@@ -14,13 +13,11 @@ import os
 from PIL import Image
 
 def genNumber(num):
-    """generates a number as a numpy array image
-    TODO!!!!!!!!!!!!
-    Not implemented!!! Currently just returns a solid block. """
+    """Generates a number as a picture in a numpy array
+    """
     path = os.path.join(os.path.dirname(__file__))
     path = path + '/' + str(num) + '.png'
     im = Image.open(path).convert('L').resize((12,12), Image.ANTIALIAS)
-    # return 255*np.ones(4)
     return (np.asarray(im) < 200)*255
 
     
@@ -51,26 +48,15 @@ class gameEnv():
         self.next_goal = 0
         
         for i in range(self.num_goals):
-            # WARNING: assumes high > low (may not be true)
-            # w = np.random.randint(20,(84-2*self.brdr)//self.num_goals)
             w = 4
             if w % 2 != 0:
                 w -= 1
-            num_width = 12
-            gc = np.random.randint(self.brdr, 84-self.brdr-num_width,
+            goal_width = 12
+            gc = np.random.randint(self.brdr, 84-self.brdr-goal_width,
                                      size=2)
-            
             goal = np.zeros((84,84))
-            # print(genNumber(i+1))
-            # print(genNumber(i+1).shape)
-            # print(goal[gc[0]:gc[0]+24, gc[1]:gc[1]+24].shape)
-            goal[gc[0]:gc[0]+num_width, gc[1]:gc[1]+num_width] = genNumber(i+1)
-
+            goal[gc[0]:gc[0]+goal_width, gc[1]:gc[1]+goal_width] = genNumber(i+1)
             self.goals.append(goal)
-
-            # b = self.state[goal[0]-w//2:goal[0]+w//2,goal[1]-w//2:goal[1]+w//2,:]
-            # b.fill(0)
-            # b[:,:,1] = genNumber(i+1)
 
 
         # reset hero location
@@ -85,7 +71,9 @@ class gameEnv():
         
         return self.getState()
 
-    def moveChar(self,accel_in):        
+    def moveChar(self,accel_in):
+        """Applies the acceleration command to the character state"""
+
         self.hero_old = self.hero.copy()
         penalize = 0.0
         a_m = 10*self.a_max
@@ -98,12 +86,6 @@ class gameEnv():
         self.hero[3] = v_m * np.tanh(vx/v_m)
         self.hero[2] = v_m * np.tanh(vy/v_m)
 
-        if np.isnan(self.hero[3]):
-            print('hero[3] is nan')
-            print(a_m)
-            print(v_m)
-            print(accel)
-            print(accel_in)
         return penalize
 
     def borderCollision(self):
@@ -135,6 +117,9 @@ class gameEnv():
     
     def checkGoal(self):
         """Computes the reward the hero receives
+        -negative an terminal if crash
+        -positive if final goal reached
+        
         Returns
         =======
         r,d
@@ -168,34 +153,29 @@ class gameEnv():
 
         image = self.getState()
         self.im.set_data(image)
-        # plt.draw()
         plt.pause(0.0001)
         plt.draw()
         return image
 
     def getState(self):
+        """Returns the last observation"""
         width = self.width
         state = self.state.copy()
-        # render hero
+
         hero = np.round(self.hero).astype(int)
         hero_p = np.round(self.hero_old).astype(int)
-        # state[hero_p[0]-width:hero_p[0]+width,
-        #       hero_p[1]-width:hero_p[1]+width,2] = 0
+
+        #Add hero to the image on top of everything else
         state[hero[0]-width:hero[0]+width,
               hero[1]-width:hero[1]+width,0] = 0
-            # hs = np.array(self.state[hero[0]-width:hero[0]+width,
-            #                          hero[1]-width:hero[1]+width,1]).astype(float)
-            # hs *= (1-np.exp(-np.linalg.norm(hero[2:])))
-            # self.state[hero[0]-width:hero[0]+width,
-            #            hero[1]-width:hero[1]+width,1] = hs.astype(int)
-            
         state[hero[0]-width:hero[0]+width,
               hero[1]-width:hero[1]+width,2] = 255
 
-
+        #Overlay the goal regions
         for i in range(self.next_goal, self.num_goals):
             goal = self.goals[i]
             state[:,:,1] += goal
+
         state = np.clip(state,0,255)
         state = np.array(scipy.misc.toimage(state))
         return state
@@ -204,12 +184,6 @@ class gameEnv():
         penalty = self.moveChar(action)
         reward,done = self.checkGoal()
         state = self.getState()
-        if reward == None:
-            print(done)
-            print(reward)
-            print(penalty)
-            return state,(reward+penalty),done
-        else:
-            return state,(reward+penalty),done        
+        return state,(reward+penalty),done        
 
 
