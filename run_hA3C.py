@@ -24,7 +24,7 @@ def process_args(args):
         
     return args
 
-def load_env(env_name):
+def load_env(env_name, ):
     if env_name == "Waypoints":
         return environments.waypoint_planner.gameEnv()
     if env_name == "Search":
@@ -59,9 +59,11 @@ def main():  # noqa: D103
     a_size = 2                # planar real-valued accelerations
     m_max_episode_length = 20
     m_s_shape = [84,84,3]
-    m_a_size = 16
+    m_a_size = 256            # Should be a square number
+
     
 
+    grid_size = (int(np.sqrt(m_a_size)), int(np.sqrt(m_a_size)))
     
     with tf.device("/cpu:0"):
         m_trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
@@ -74,13 +76,13 @@ def main():  # noqa: D103
 
         num_workers = multiprocessing.cpu_count() # number of available CPU threads
         workers = []
-
         
         for i in range(num_workers):
             env = load_env(args.env)
             m_env = AC_rnn_ra_Wrapper(env,i,s_shape, a_size, trainer,
                                       global_episodes, max_episode_length,
-                                      update_ival, gamma, lam, args.output)
+                                      update_ival, gamma, lam, args.output,
+                                      grid_size = grid_size)
             workers.append(AC_Worker(m_env,i,m_s_shape,m_a_size,m_trainer,
                                      args.output,global_episodes))
             

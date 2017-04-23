@@ -32,7 +32,7 @@ class AC_rnn_ra_Wrapper():
                  global_episodes, # args to Worker.init(...)
                  # args to Worker.work(...)
                  max_episode_length,update_ival,gamma,lam,
-                 model_path):
+                 model_path, grid_size):
 
         self.env = game
         # ARA - todo: generalize this
@@ -52,6 +52,7 @@ class AC_rnn_ra_Wrapper():
         self.sess = None
         # self.saver = tf.train.Saver(max_to_keep=5)
         self.im = None
+        self.grid_size = grid_size
 
         self.episode_rewards = []
         self.episode_lengths = []
@@ -148,13 +149,13 @@ class AC_rnn_ra_Wrapper():
         return np.sum(s[:,:,1]-sp[:,:,1])/(4.0**2)
 
     # ARA - todo: add to critic and generalize to get "filtered actions"
-    def get_mask(self,a,size=(84,84),grid=(4,4),brdr=4):
+    def get_mask(self,a,size=(84,84),brdr=4):
         """Generate a mask with rectangular cell."""
-        ni,nj = grid # divide a mask into a cell regions
+        ni,nj = self.grid_size # divide a mask into a cell regions
         i = np.round(np.linspace(0,size[0]-2*brdr,ni+1)).astype(int)+brdr
         j = np.round(np.linspace(0,size[1]-2*brdr,nj+1)).astype(int)+brdr    
-        ri = a // 4 # a should be between 0 and np.prod(grid)
-        rj = a % 4
+        ri = a // ni # a should be between 0 and np.prod(grid)
+        rj = a % ni
         mask = np.zeros(size)
         mask[i[ri]:i[ri+1],j[rj]:j[rj+1]] = 1.0 # fill grid cell 
         return mask

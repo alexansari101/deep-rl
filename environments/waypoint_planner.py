@@ -25,10 +25,10 @@ def genNumber(num):
 class gameEnv():
     """Environment definition for hierarchical RL"""
     
-    def __init__(self,v_max=1.0,a_max=1.0):        
+    def __init__(self,v_max=1.0,a_max=1.0, num_goals=2):        
         self.a_max = a_max
         self.v_max = v_max        
-        self.num_goals = 3
+        self.num_goals = num_goals
         self.next_goal = 0
         self.num_obstacles = 0
         self.hero = np.zeros(4)
