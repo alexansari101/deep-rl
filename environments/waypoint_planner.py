@@ -12,12 +12,12 @@ import matplotlib.pyplot as plt
 import os
 from PIL import Image
 
-def genNumber(num):
+def genNumber(num, width):
     """Generates a number as a picture in a numpy array
     """
     path = os.path.join(os.path.dirname(__file__))
     path = path + '/' + str(num) + '.png'
-    im = Image.open(path).convert('L').resize((12,12), Image.ANTIALIAS)
+    im = Image.open(path).convert('L').resize((width,width), Image.ANTIALIAS)
     return (np.asarray(im) < 200)*255
 
     
@@ -51,11 +51,11 @@ class gameEnv():
             w = 4
             if w % 2 != 0:
                 w -= 1
-            goal_width = 12
+            goal_width = 24
             gc = np.random.randint(self.brdr, 84-self.brdr-goal_width,
                                      size=2)
             goal = np.zeros((84,84))
-            goal[gc[0]:gc[0]+goal_width, gc[1]:gc[1]+goal_width] = genNumber(i+1)
+            goal[gc[0]:gc[0]+goal_width, gc[1]:gc[1]+goal_width] = genNumber(i+1, goal_width)
             self.goals.append(goal)
 
 
@@ -172,9 +172,12 @@ class gameEnv():
               hero[1]-width:hero[1]+width,2] = 255
 
         #Overlay the goal regions
-        for i in range(self.next_goal, self.num_goals):
-            goal = self.goals[i]
-            state[:,:,1] += goal
+        # for i in range(self.next_goal, self.num_goals):
+        #     goal = self.goals[i]
+        #     state[:,:,1] += goal
+        #Overlay only the next goal
+        if(self.next_goal < len(self.goals)):
+            state[:,:,1] += self.goals[self.next_goal]
 
         state = np.clip(state,0,255)
         state = np.array(scipy.misc.toimage(state))

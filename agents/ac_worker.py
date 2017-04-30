@@ -27,6 +27,11 @@ Todo:
 """
 
 import numpy as np
+import matplotlib
+matplotlib.use('PS')
+# matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.animation as manimation
 import tensorflow as tf
 import time
 from datetime import timedelta
@@ -65,6 +70,7 @@ class AC_Worker():
         self.episode_mean_values = []
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
                                                     + str(self.number))
+        self.movie_path = model_path + "/movies_"
 
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
@@ -107,7 +113,7 @@ class AC_Worker():
                                          feed_dict=feed_dict)
         return v_l/len(rollout),p_l/len(rollout),e_l/len(rollout),g_n,v_n
 
-    def evaluate(self, sess):
+    def evaluate(self, sess, n=0):
         episode_count = sess.run(self.global_episodes)
         s = self.env.reset()
         s = process_frame(s)
@@ -115,9 +121,12 @@ class AC_Worker():
         r = 0
         episode_r = 0
 
-        self.env.flags['render'] = True
+        self.env.flags['render'] = False
         self.env.flags['train'] = False
-        self.env.flags['verbose'] = True
+        self.env.flags['verbose'] = False
+        printing = True
+
+        frames = []
         
         while d == False:
             a_dist,v = sess.run([self.local_AC.policy,
@@ -126,9 +135,28 @@ class AC_Worker():
             a = np.random.choice(a_dist[0],p=a_dist[0])
             a = np.argmax(a_dist == a)
             s1,r,d = self.env.step(a)
+            frames += self.env.get_frames()
             episode_r += r
         print('episode reward: ' + str(episode_r))
-            
+        
+        if not printing:
+            return
+
+        fig = plt.figure()
+
+        l = plt.imshow(frames[0])
+
+        FFMpegWriter = manimation.writers['ffmpeg']
+        metadata = dict(title='Movie Test', artist='Matplotlib',
+                        comment='Movie support!')
+        writer = FFMpegWriter(fps=15, metadata=metadata)
+
+        movie_path = self.movie_path + "episode_" + str(n) + ".mp4"
+        with writer.saving(fig, movie_path, 100):
+            for f in frames:
+                l.set_data(f)
+                writer.grab_frame()
+    
         
     def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
              coord,saver):
@@ -199,6 +227,7 @@ class AC_Worker():
                                                      sess,gamma,lam,0.0)
                 if episode_count % 1000 == 0 and self.name == 'worker_0':
                     saver.save(sess,self.model_path+'/model.ckpt', episode_count)
+                    self.evaluate(sess, episode_count)
                     
                     s_dt = str(timedelta(seconds=time.time()-t0))
                     print("Saved Model " + str(episode_count) + '\tat time ' + s_dt)

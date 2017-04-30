@@ -72,6 +72,7 @@ class AC_rnn_ra_Wrapper():
         self.flags = {'render':False,
                       'train':True,
                       'verbose':False}
+        self.frames = []
 
     def train(self,rollout,bootstrap_value):
         rollout = np.array(rollout)
@@ -129,13 +130,20 @@ class AC_rnn_ra_Wrapper():
             self.im = plt.imshow(self.getState())
             plt.ion()
 
-        s = self.getState()
-        m_s = self.get_meta_state(s,self.get_mask(g))
-        image = self.visualize_meta_state(m_s)
+        image = self.get_meta_state_image(g)
         self.im.set_data(image)
         plt.pause(0.0001)
         plt.draw()
         return image
+
+    def get_meta_state_image(self, g):
+        s = self.getState()
+        m_s = self.get_meta_state(s,self.get_mask(g))
+        return self.visualize_meta_state(m_s)
+
+    def get_frames(self):
+        return self.frames
+    
 
     def render(self):
         return self.env.render()
@@ -372,4 +380,5 @@ class AC_rnn_ra_Wrapper():
 
         # ARA - todo: check if max meta-episodes is reached in meta-agent
         #       only send a done (m_d) signal if inner env. needs resetting.
+        self.frames = episode_frames
         return s[:,:,:-1],m_r,m_d 

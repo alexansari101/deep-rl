@@ -1,4 +1,5 @@
 from util import dir_utils
+from agents.ac_worker import AC_Worker
 import environments
 from environments.ac_rnn_ra_wrapper import AC_rnn_ra_Wrapper
 import argparse
@@ -8,7 +9,7 @@ import threading
 import multiprocessing
 from agents.ac_network import AC_Network
 from agents.ac_rnn_ra_network import AC_rnn_ra_Network
-from agents.ac_worker import AC_Worker
+
 import sys
 import curses
 import select
@@ -46,6 +47,7 @@ def main():  # noqa: D103
     parser.add_argument('--load', action='store_const', const=True)
     parser.add_argument('--trial', default=None, type=int, help='The trial number to load')
     parser.add_argument('--iter', default=0, type=int, help='The iter to load CURRENTLY UNUSED')
+    parser.add_argument('--grid', default=4, type=int, help='Number of grid squares in a row or column')
 
     args = parser.parse_args()
     args = process_args(args)
@@ -59,11 +61,12 @@ def main():  # noqa: D103
     a_size = 2                # planar real-valued accelerations
     m_max_episode_length = 20
     m_s_shape = [84,84,3]
-    m_a_size = 256            # Should be a square number
+    m_a_size = args.grid**2      # Should be a square number
 
     
 
-    grid_size = (int(np.sqrt(m_a_size)), int(np.sqrt(m_a_size)))
+    # grid_size = (int(np.sqrt(m_a_size)), int(np.sqrt(m_a_size)))
+    grid_size = (args.grid, args.grid)
     
     with tf.device("/cpu:0"):
         m_trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
