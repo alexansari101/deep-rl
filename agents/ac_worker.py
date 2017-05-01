@@ -27,7 +27,17 @@ Todo:
 """
 
 import numpy as np
+import matplotlib
+
+matplotlib.use('PS')
+#PS can run on parallel threads, TK (default) cannot
+#Probably this command should be moved somewhere else
+
+import matplotlib.pyplot as plt
+import matplotlib.animation as manimation
 import tensorflow as tf
+import time
+from datetime import timedelta
 
 from util import update_target_graph, process_frame, discount
 from agents.ac_network import AC_Network
@@ -60,11 +70,10 @@ class AC_Worker():
         self.trainer = trainer
         self.global_episodes = global_episodes
         self.increment = self.global_episodes.assign_add(1)
-        self.episode_rewards = []
-        self.episode_lengths = []
         self.episode_mean_values = []
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
                                                     + str(self.number))
+        self.movie_path = model_path + "/movies_"
 
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
@@ -106,17 +115,63 @@ class AC_Worker():
                                           self.local_AC.apply_grads],
                                          feed_dict=feed_dict)
         return v_l/len(rollout),p_l/len(rollout),e_l/len(rollout),g_n,v_n
+
+    def evaluate(self, sess, n=0):
+        episode_count = sess.run(self.global_episodes)
+        s = self.env.reset()
+        s = process_frame(s)
+        d = False
+        r = 0
+        episode_r = 0
+
+        self.env.flags['render'] = False
+        self.env.flags['train'] = False
+        self.env.flags['verbose'] = False
+        printing = True
+
+        frames = []
+        
+        while d == False:
+            a_dist,v = sess.run([self.local_AC.policy,
+                                 self.local_AC.value], 
+                                feed_dict={self.local_AC.inputs:[s]})
+            a = np.random.choice(a_dist[0],p=a_dist[0])
+            a = np.argmax(a_dist == a)
+            s1,r,d = self.env.step(a)
+            frames += self.env.get_frames()
+            episode_r += r
+        print('episode reward: ' + str(episode_r))
+        
+        if not printing:
+            return
+
+        fig = plt.figure()
+
+        l = plt.imshow(frames[0])
+
+        FFMpegWriter = manimation.writers['ffmpeg']
+        metadata = dict(title='Movie Test', artist='Matplotlib',
+                        comment='Movie support!')
+        writer = FFMpegWriter(fps=15, metadata=metadata)
+
+        movie_path = self.movie_path + "episode_" + str(n) + ".mp4"
+        with writer.saving(fig, movie_path, 100):
+            for f in frames:
+                l.set_data(f)
+                writer.grab_frame()
+    
         
     def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
              coord,saver):
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
+        t0 = time.time()
         print("Starting worker " + str(self.number))
         with sess.as_default(), sess.graph.as_default():                 
             while not coord.should_stop():
                 sess.run(self.update_local_ops)
                 episode_buffer = []
-                episode_values = []
+                state_values = []
                 episode_frames = []
                 episode_reward = 0
                 episode_step_count = 0
@@ -144,7 +199,7 @@ class AC_Worker():
                         d = True
                         
                     episode_buffer.append([s,a,r,s1,d,v[0,0]])
-                    episode_values.append(v[0,0])
+                    state_values.append(v[0,0])
 
                     episode_reward += r
                     s = s1                    
@@ -167,33 +222,33 @@ class AC_Worker():
                         episode_buffer = []
                         sess.run(self.update_local_ops)
 
-                self.episode_rewards.append(episode_reward)
-                self.episode_lengths.append(episode_step_count)
-                self.episode_mean_values.append(np.mean(episode_values))
                 
                 # Update the network using the experience buffer at the
                 # end of the episode.
                 if len(episode_buffer) != 0:
                     v_l,p_l,e_l,g_n,v_n = self.train(global_AC,episode_buffer,
                                                      sess,gamma,lam,0.0)
+                if episode_count % 1000 == 0 and self.name == 'worker_0':
+                    saver.save(sess,self.model_path+'/model.ckpt', episode_count)
+                    self.evaluate(sess, episode_count)
+                    
+                    s_dt = str(timedelta(seconds=time.time()-t0))
+                    print("Saved Model " + str(episode_count) + '\tat time ' + s_dt)
+
                     
                 # Periodically save model parameters, and summary statistics.
                 if episode_count % 5 == 0 and episode_count != 0:
-                    if episode_count % 500 == 0 and self.name == 'worker_0':
-                        saver.save(sess,self.model_path+'/model-'
-                                   +str(episode_count)+'.cptk')
-                        print("Saved Model")
 
-                    mean_reward = np.mean(self.episode_rewards[-5:])
-                    mean_length = np.mean(self.episode_lengths[-5:])
-                    mean_value = np.mean(self.episode_mean_values[-5:])
+                    mean_state_value = np.mean(state_values)
                     summary = tf.Summary()
                     summary.value.add(tag='Perf/Reward',
-                                      simple_value=float(mean_reward))
-                    summary.value.add(tag='Perf/Length',
-                                      simple_value=float(mean_length))
-                    summary.value.add(tag='Perf/Value',
-                                      simple_value=float(mean_value))
+                                      simple_value=float(episode_reward))
+                    summary.value.add(tag='Perf/Episode Length',
+                                      simple_value=float(episode_step_count))
+                    summary.value.add(tag='Perf/Mean State Value',
+                                      simple_value=float(mean_state_value))
+                    summary.value.add(tag='Perf/Global Episodes',
+                                      simple_value=float(sess.run(self.global_episodes)))
                     summary.value.add(tag='Losses/Value Loss',
                                       simple_value=float(v_l))
                     summary.value.add(tag='Losses/Policy Loss',
