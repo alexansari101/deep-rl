@@ -170,7 +170,7 @@ class AC_rnn_ra_Wrapper():
         return mask
 
     # ARA - todo: add to critic and generalize
-    def intrinsic_reward(self,s,a,sp,f,g):
+    def intrinsic_reward(self,s,a,sp,f,m_d,g):
         """Intrinsic reward from internal critic in hierarchical RL.
 
         Arguments:
@@ -187,9 +187,10 @@ class AC_rnn_ra_Wrapper():
         r = -0.05
         # r = 0.0  
 
-        if f < 0:
+        
+        if m_d:
             done = True
-            r = -10
+            r = f
 
         #small reward for moving slowly
         if np.sum(s[:,:,2].astype(bool)*sp[:,:,2]) > 0:
@@ -289,7 +290,7 @@ class AC_rnn_ra_Wrapper():
                 self.render_meta_state(m_a)
 
             # ARA - todo: make into internal critic or provide a env. wrapper
-            i_r,i_d = self.intrinsic_reward(s,a,s1,f,g)
+            i_r,i_d = self.intrinsic_reward(s,a,s1,f,m_d,g)
 
             d = m_d or i_d or episode_step_count == self.max_episode_length-1
 

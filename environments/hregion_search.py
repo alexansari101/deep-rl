@@ -17,7 +17,8 @@ class gameEnv():
         self.brdr = 4
         self.width = 2
         self.state = np.zeros([84,84,3])
-        plt.imshow(self.state,interpolation="nearest")
+        # plt.imshow(self.state,interpolation="nearest")
+        # ^^ Causes warning messages when animating
 
     def reset(self):
         self.state.fill(0)
