@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
-""" Game Enviornment for a waypoint planner
-This environment has multiple waypoints
-Rewards are received after all waypoints have been traversed
+""" 
+Simple game where the center is always the goal
 
 """
 
@@ -12,23 +11,14 @@ import matplotlib.pyplot as plt
 import os
 from PIL import Image
 
-def genNumber(num, width):
-    """Generates a number as a picture in a numpy array
-    """
-    path = os.path.join(os.path.dirname(__file__))
-    path = path + '/' + str(num) + '.png'
-    im = Image.open(path).convert('L').resize((width,width), Image.ANTIALIAS)
-    return (np.asarray(im) < 200)*255
-
-    
         
 class gameEnv():
     """Environment definition for hierarchical RL"""
     
-    def __init__(self,v_max=1.0,a_max=1.0, num_goals=1):
+    def __init__(self,v_max=1.0,a_max=1.0):
         self.a_max = a_max
         self.v_max = v_max        
-        self.num_goals = num_goals
+        self.num_goals = 1
         self.next_goal = 0
         self.num_obstacles = 0
         self.hero = np.zeros(4)
@@ -53,18 +43,11 @@ class gameEnv():
         self.goals = []
         self.next_goal = 0
         
-        for i in range(self.num_goals):
-            w = 4
-            if w % 2 != 0:
-                w -= 1
-            goal_width = 24
-            gc = np.random.randint(self.brdr, 84-self.brdr-goal_width,
-                                     size=2)
-            goal = np.zeros((84,84))
-            goal[gc[0]:gc[0]+goal_width, gc[1]:gc[1]+goal_width] = genNumber(i+1, goal_width)
-            self.goals.append(goal)
-
-
+        goal = np.zeros((84,84))
+        (i,j) = np.random.randint(4,70,2)
+        goal[i:i+10, j:j+10]=255
+        self.goals.append(goal)
+        
         # reset hero location
         self.hero = np.random.randint(self.brdr+self.width+2,
                                       83-self.brdr-self.width,

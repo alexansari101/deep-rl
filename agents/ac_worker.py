@@ -62,18 +62,19 @@ class AC_Worker():
                 episode count
         
         """
-        self.name = "worker_" + str(name)
+        self.name = name
         self.s_shape = s_shape
         self.a_size = a_size
-        self.number = name        
+        self.name = name        
         self.model_path = model_path
         self.trainer = trainer
         self.global_episodes = global_episodes
         self.increment = self.global_episodes.assign_add(1)
         self.episode_mean_values = []
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
-                                                    + str(self.number))
+                                                    + str(self.name))
         self.movie_path = model_path + "/movies_"
+        self.is_writer = name.endswith('0')
 
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
@@ -124,9 +125,9 @@ class AC_Worker():
         r = 0
         episode_r = 0
 
-        self.env.flags['render'] = False
         self.env.flags['train'] = False
-        self.env.flags['verbose'] = False
+        self.env.flags['verbose'] = True
+
         printing = True
 
         frames = []
@@ -159,15 +160,17 @@ class AC_Worker():
             for f in frames:
                 l.set_data(f)
                 writer.grab_frame()
-    
+        plt.close()
+        self.env.flags['train'] = True
+        self.env.flags['verbose'] = False
         
     def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
              coord,saver):
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
         t0 = time.time()
-        print("Starting worker " + str(self.number))
-        with sess.as_default(), sess.graph.as_default():                 
+        print("Starting worker " + str(self.name))
+        with sess.as_default(), sess.graph.as_default():
             while not coord.should_stop():
                 sess.run(self.update_local_ops)
                 episode_buffer = []
@@ -222,13 +225,15 @@ class AC_Worker():
                         episode_buffer = []
                         sess.run(self.update_local_ops)
 
+
                 
                 # Update the network using the experience buffer at the
                 # end of the episode.
                 if len(episode_buffer) != 0:
                     v_l,p_l,e_l,g_n,v_n = self.train(global_AC,episode_buffer,
                                                      sess,gamma,lam,0.0)
-                if episode_count % 1000 == 0 and self.name == 'worker_0':
+
+                if episode_count % 1000 == 0 and self.is_writer:
                     saver.save(sess,self.model_path+'/model.ckpt', episode_count)
                     self.evaluate(sess, episode_count)
                     
@@ -261,7 +266,7 @@ class AC_Worker():
                                       simple_value=float(v_n))
                     self.summary_writer.add_summary(summary, episode_count)
                     self.summary_writer.flush()
-                    
-                if self.name == 'worker_0':
+
+                if self.is_writer:
                     sess.run(self.increment)
                 episode_count += 1

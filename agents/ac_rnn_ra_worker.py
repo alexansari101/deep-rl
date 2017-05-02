@@ -56,7 +56,7 @@ class AC_rnn_ra_Worker():
     """
     
     def __init__(self,game,name,s_shape,a_size,trainer,model_path,
-                 global_episodes):
+                 global_episodes, hlvl=0):
         """Initialize the worker environment, AC net, and trainer.
 
         Args:
@@ -70,10 +70,10 @@ class AC_rnn_ra_Worker():
                 episode count
         
         """
-        self.name = "worker_" + str(name)
+        self.name = name
         self.s_shape = s_shape
         self.a_size = a_size
-        self.number = name        
+        self.name = name        
         self.model_path = model_path
         self.trainer = trainer
         self.global_episodes = global_episodes
@@ -82,16 +82,21 @@ class AC_rnn_ra_Worker():
         self.episode_lengths = []
         self.episode_mean_values = []
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
-                                                    + str(self.number))
+                                                    + str(self.name))
 
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
-        self.local_AC = AC_rnn_ra_Network(s_shape,a_size,self.name,trainer)
-        self.update_local_ops = update_target_graph('global_0',self.name)  
+        self.local_AC = AC_rnn_ra_Network(s_shape,a_size,self.name,trainer,hlvl)
+        self.update_local_ops = update_target_graph('global_'+str(hlvl),self.name)  
 
         self.env = game
 
-    def train(self,global_AC,rollout,sess,gamma,lam,bootstrap_value):
+        self.rnn_state = None
+        self.start_rnn_state = None
+        self.prev_a = None
+
+
+    def train(self,rollout,sess,gamma,lam,bootstrap_value):
         rollout = np.array(rollout)
         observations = rollout[:,0]
         actions = rollout[:,1]
@@ -113,7 +118,7 @@ class AC_rnn_ra_Worker():
 
         # Update the global network using gradients from loss
         # Generate network statistics to periodically save
-        rnn_state = self.local_AC.state_init
+        rnn_state = self.start_rnn_state
         feed_dict = {self.local_AC.target_v:discounted_rewards,
                      # ARA - using np.stack to support Ndarray states
                      self.local_AC.inputs:np.stack(observations),
@@ -132,12 +137,39 @@ class AC_rnn_ra_Worker():
                                           self.local_AC.apply_grads],
                                          feed_dict=feed_dict)
         return v_l/len(rollout),p_l/len(rollout),e_l/len(rollout),g_n,v_n
+
+    def sample_av(self, s, sess, prev_r):
+        """Returns an action sampled from the agent's policy, and value"""
+        # feed_dict={self.local_AC.inputs:[s]}
+        feed_dict={self.local_AC.inputs:[s],
+                   self.local_AC.prev_actions:[self.prev_a],
+                   self.local_AC.prev_rewards:[[prev_r]],
+                   self.local_AC.is_training_ph:False,
+                   self.local_AC.state_in[0]:self.rnn_state[0],
+                   self.local_AC.state_in[1]:self.rnn_state[1]}
+
+
+        a, v, rnn_state = sess.run([self.local_AC.sample_a,
+                                    self.local_AC.value,
+                                    self.local_AC.state_out],
+                                   feed_dict=feed_dict)
+        self.rnn_state = rnn_state
+        self.prev_a = a
+        return a, v
+
+    def reset_agent(self):
+        self.rnn_state = self.local_AC.state_init
+        self.prev_a = np.array([0]*self.a_size)
+
+    def start_trial(self):
+        self.start_rnn_state = self.rnn_state
+                
         
     def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
              coord,saver):
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
-        print("Starting worker " + str(self.number))
+        print("Starting worker " + str(self.name))
         with sess.as_default(), sess.graph.as_default():                 
             while not coord.should_stop():
                 sess.run(self.update_local_ops)
@@ -198,9 +230,8 @@ class AC_rnn_ra_Worker():
                             self.local_AC.prev_rewards:[[r]],
                             self.local_AC.is_training_ph:False,
                             self.local_AC.state_in[0]:rnn_state[0],
-                            self.local_AC.state_in[1]:rnn_state[1]})[0,0]
-                        v_l,p_l,e_l,g_n,v_n = self.train(global_AC,
-                                                         episode_buffer,
+                            self.local_AC.state_in[1]:rnn_state[1]})[0,0] 
+                        v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,
                                                          sess,gamma,lam,v1)
                         episode_buffer = []
                         sess.run(self.update_local_ops)
