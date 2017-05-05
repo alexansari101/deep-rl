@@ -9,6 +9,7 @@ import threading
 import multiprocessing
 from agents.ac_network import AC_Network
 from agents.ac_rnn_ra_network import AC_rnn_ra_Network
+import HA3C_2lvl
 
 import sys
 import curses
@@ -82,12 +83,13 @@ def main():  # noqa: D103
         
         for i in range(num_workers):
             env = load_env(args.env)
-            m_env = AC_rnn_ra_Wrapper(env,i,s_shape, a_size, trainer,
-                                      global_episodes, max_episode_length,
-                                      update_ival, gamma, lam, args.output,
-                                      grid_size = grid_size)
-            workers.append(AC_Worker(m_env,i,m_s_shape,m_a_size,m_trainer,
-                                     args.output,global_episodes))
+            # m_env = AC_rnn_ra_Wrapper(env,i,s_shape, a_size, trainer,
+            #                           global_episodes, max_episode_length,
+            #                           update_ival, gamma, lam, args.output,
+            #                           grid_size = grid_size)
+            # workers.append(AC_Worker(m_env,i,m_s_shape,m_a_size,m_trainer,
+            #                          args.output,global_episodes))
+            workers.append(HA3C_2lvl.get_2lvl_HA3C(env, i, args.output, global_episodes))
             
         saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)
     with tf.Session() as sess:

@@ -21,31 +21,27 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from util import update_target_graph, process_frame, discount
-from agents.ac_rnn_ra_network import AC_rnn_ra_Network
 
-class AC_rnn_ra_Wrapper():
+class H_Env_Wrapper():
     """Wraps an AC agent with rnn support and meta-learning.
 
     """
 
-    def __init__(self,game,name,s_shape,a_size,trainer,
+    def __init__(self,agent,
                  global_episodes, # args to Worker.init(...)
                  # args to Worker.work(...)
-                 max_episode_length,update_ival,gamma,lam,
+                 max_ep_len,gamma,lam,
                  model_path, grid_size):
 
-        self.env = game
+        self.env = agent.env
         # ARA - todo: generalize this
-        self.name = "wrapper_" + str(name)
-        self.s_shape = s_shape
-        self.a_size = a_size
-        # self.trainer = trainer
+
         self.model_path = model_path
         self.global_episodes = global_episodes
         # self.increment = self.global_episodes.assign_add(1)
-        
-        self.max_episode_length = max_episode_length
-        self.update_ival = update_ival
+
+        self.max_ep_len = max_ep_len
+
         self.gamma = gamma
         self.lam = lam
         self.sess = None
@@ -59,13 +55,12 @@ class AC_rnn_ra_Wrapper():
 
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
-        self.local_AC = AC_rnn_ra_Network(s_shape,a_size,self.name,
-                                          trainer,hlvl=1)
+        self.agent = agent
         # todo: 'global' -> ?
-        self.update_local_ops = update_target_graph('global_1',self.name)
+        self.update_local_ops = update_target_graph('global_1',agent.name)
 
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
-                                                    + str(name))
+                                                    + str(agent.name))
 
         self.flags = {'render':False,
                       'train':True,
@@ -73,55 +68,11 @@ class AC_rnn_ra_Wrapper():
         self.frames = [] #frames for saving movies
         self.last_obs = []
 
-    def train(self,rollout,bootstrap_value):
-        rollout = np.array(rollout)
-        observations = rollout[:,0]
-        actions = rollout[:,1]
-        rewards = rollout[:,2]
-        prev_rewards = [0] + rewards[:-1].tolist()
-        prev_actions = [np.array([0]*len(actions[0]))] \
-                       + actions[:-1].tolist()
-        next_observations = rollout[:,3] # ARA - currently unused
-        values = rollout[:,5]
-            
-        # Here we take the rewards and values from the rollout, and use
-        # them to generate the advantage and discounted returns.  The
-        # advantage function uses "Generalized Advantage Estimation"
-        # Based on: https://github.com/awjuliani/DeepRL-Agents
-        self.rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
-        discounted_rewards = discount(self.rewards_plus,self.gamma)[:-1]
-        self.value_plus = np.asarray(values.tolist() + [bootstrap_value])
-        advantages = rewards + self.gamma * self.value_plus[1:] \
-                     - self.value_plus[:-1]
-        advantages = discount(advantages,self.gamma*self.lam)
-        
-        # Update the global network using gradients from loss
-        # Generate network statistics to periodically save
-        rnn_state = self.local_AC.state_init
-        feed_dict = {self.local_AC.target_v:discounted_rewards,
-                     # ARA - using np.stack to support Ndarray states
-                     self.local_AC.inputs:np.stack(observations),
-                     self.local_AC.prev_actions:np.vstack(prev_actions),
-                     self.local_AC.prev_rewards:np.vstack(prev_rewards),
-                     self.local_AC.is_training_ph:True,
-                     self.local_AC.actions:np.vstack(actions),
-                     self.local_AC.advantages:advantages,
-                     self.local_AC.state_in[0]:rnn_state[0],
-                     self.local_AC.state_in[1]:rnn_state[1]}
-
-        v_l,p_l,e_l,g_n,v_n,_ = self.sess.run([self.local_AC.value_loss,
-                                               self.local_AC.policy_loss,
-                                               self.local_AC.entropy,
-                                               self.local_AC.grad_norms,
-                                               self.local_AC.var_norms,
-                                               self.local_AC.apply_grads],
-                                              feed_dict=feed_dict)
-
-        return v_l/len(rollout),p_l/len(rollout),e_l/len(rollout),g_n,v_n
 
     # Runs after episode completion. Perform a training op. Update graphs.
     def reset(self):
         self.last_obs = self.env.reset()
+        self.agent.reset_agent()
         return self.last_obs
 
     # Returns the current environment state
@@ -183,46 +134,46 @@ class AC_rnn_ra_Wrapper():
         intrinsic_reward: reward based on agreement with the meta goal
         done: Terminal wrapped_env?
         """
-        # done = False
-        # r = -0.05
+        done = False
+        r = -0.05
         # r = 0.0  
 
         
-        # if m_d:
-        #     done = True
-        #     r = f
+        if m_d:
+            done = True
+            r = f
 
-        # #small reward for moving slowly
-        # if np.sum(s[:,:,2].astype(bool)*sp[:,:,2]) > 0:
-        #     r += 0.05
+        #small reward for moving slowly
+        if np.sum(s[:,:,2].astype(bool)*sp[:,:,2]) > 0:
+            r += 0.05
 
-        # #large reward if the agent's past and present
-        # #  state is inside the masked region
-        # if np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
-        #      and np.sum(g.astype(bool)*sp[:,:,2]) > 3.5:
-        #     r += f
-        #     done = True
+        #large reward if the agent's past and present
+        #  state is inside the masked region
+        if np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
+             and np.sum(g.astype(bool)*sp[:,:,2]) > 3.5:
+            r += 1
+            done = True
 
-        # i_r = np.clip(r,-1,1)
+        i_r = np.clip(r,-1,1)
 
-        # return i_r, done
+        return i_r, done
 
         #Same Reward as Alex Used
-        done = False
-        r = -0.05
-        # if the agent's past and present state is inside the masked region
-        if f < 0:
-            done = True
-            r = -10
-        elif np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
-             and np.sum(g.astype(bool)*sp[:,:,2]) > 3.5:
-            f_diff = np.sum(sp[:,:,2]-s[:,:,2])/4
-            if(f_diff > 0.0001):
-                print(f_diff)
-            r += 0.35*np.exp(-f_diff)
-            if r > 0:
-                done = True
-        return r, done    
+        # done = False
+        # r = -0.05
+        # # if the agent's past and present state is inside the masked region
+        # if f < 0:
+        #     done = True
+        #     r = -10
+        # elif np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
+        #      and np.sum(g.astype(bool)*sp[:,:,2]) > 3.5:
+        #     f_diff = np.sum(sp[:,:,2]-s[:,:,2])/4
+        #     if(f_diff > 0.0001):
+        #         print(f_diff)
+        #     r += 0.35*np.exp(-f_diff)
+        #     if r > 0:
+        #         done = True
+        # return r, done    
 
     def get_meta_state(self,s,g):
         """compute the 4 channel meta-state from meta-action (goal / option)
@@ -259,6 +210,7 @@ class AC_rnn_ra_Wrapper():
         """
 
 
+
         if self.sess is None: # I cannot init before the sess exists
             self.sess = tf.get_default_session()
             self.summary_writer.add_graph(self.sess.graph)
@@ -273,28 +225,19 @@ class AC_rnn_ra_Wrapper():
         d = False
         i_r = 0
         m_r = 0
-        a = np.array([0]*self.a_size)        
         s = self.get_last_obs() # The meta-agent is responsible for resetting
         g = self.get_mask(m_a)
         s = self.get_meta_state(s,g)
         s0 = s[:,:,:-1].copy()
         episode_frames.append(self.visualize_meta_state(s))        
-        rnn_state = self.local_AC.state_init
+
         
         while d == False:
             # Take an action using probabilities from policy
             # network output.
-            feed_dict={self.local_AC.inputs:[s],
-                       self.local_AC.prev_actions:[a],
-                       self.local_AC.prev_rewards:[[i_r]],
-                       self.local_AC.is_training_ph:False,
-                       self.local_AC.state_in[0]:rnn_state[0],
-                       self.local_AC.state_in[1]:rnn_state[1]}
-            a,v,rnn_state = self.sess.run([self.local_AC.sample_a,
-                                           self.local_AC.value,
-                                           self.local_AC.state_out], 
-                                          feed_dict=feed_dict)
-                    
+
+            a, v = self.agent.sample_av(s, self.sess, i_r)
+
             
             s1,f,m_d = self.env.step(a)
             self.last_obs = s1
@@ -309,7 +252,7 @@ class AC_rnn_ra_Wrapper():
             # ARA - todo: make into internal critic or provide a env. wrapper
             i_r,i_d = self.intrinsic_reward(s,a,s1,f,m_d,g)
 
-            d = m_d or i_d or episode_step_count == self.max_episode_length-1
+            d = m_d or i_d or episode_step_count == self.max_ep_len-1
 
                         
             episode_buffer.append([s,a,i_r,s1,d,v[0,0]])
@@ -320,55 +263,30 @@ class AC_rnn_ra_Wrapper():
             episode_step_count += 1
             self.total_step_count += 1
                                         
-            # If the episode hasn't ended, but the experience
-            # buffer is full, then we make an update step using
-            # that experience rollout.
-            if len(episode_buffer) == self.update_ival and d != True and \
-               episode_step_count != self.max_episode_length - 1 and \
-                                     self.flags['train']:
-                # Since we don't know what the true final return
-                # is, we "bootstrap" from our current value
-                # estimation.
-                v1 = self.sess.run(self.local_AC.value, 
-                    feed_dict={self.local_AC.inputs:[s],
-                               self.local_AC.prev_actions:[a],
-                               self.local_AC.prev_rewards:[[i_r]],
-                               self.local_AC.is_training_ph:False,
-                               self.local_AC.state_in[0]:rnn_state[0],
-                               self.local_AC.state_in[1]:rnn_state[1]})[0,0]
-                v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,v1)
-                episode_buffer = []
-                self.sess.run(self.update_local_ops)
 
         if(self.flags['verbose']):
             print('intrisic episode reward: ' + str(episode_reward))
-        self.episode_rewards.append(episode_reward)
-        self.episode_lengths.append(episode_step_count)
-        self.episode_mean_values.append(np.mean(episode_values))
+
                 
         # Update the network using the experience buffer at the
         # end of the episode.
         if len(episode_buffer) != 0 and \
            self.flags['train']:
-            v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,0.0)
-            # ARA - todo: store statistics for summary writer.
-
+            v_l,p_l,e_l,g_n,v_n = self.agent.train(episode_buffer,
+                                                   self.sess,
+                                                   self.gamma, self.lam, 0.0)
 
             episode_count = self.sess.run(self.global_episodes)
 
-            if episode_count % 50 == 0 and episode_count != 0:
+            if episode_count % 50 == 0:
 
-                mean_reward = np.mean(self.episode_rewards[-5:])
-                mean_length = np.mean(self.episode_lengths[-5:])
-                mean_value = np.mean(self.episode_mean_values[-5:])
-                
                 summary = tf.Summary()
                 summary.value.add(tag='Subagent/Perf/Length',
-                                  simple_value=float(mean_length))
+                                  simple_value=float(episode_step_count))
                 summary.value.add(tag='Subagent/Perf/Intrinsic Reward',
-                                  simple_value=float(mean_reward))
+                                  simple_value=float(episode_reward))
                 summary.value.add(tag='Subagent/Perf/Value',
-                                  simple_value=float(mean_value))
+                                  simple_value=float(np.mean(episode_values)))
                 summary.value.add(tag='Subagent/Perf/Total Step Count',
                                   simple_value=float(self.total_step_count))
                 summary.value.add(tag='Subagent/Losses/Value Loss',
@@ -388,5 +306,4 @@ class AC_rnn_ra_Wrapper():
         # ARA - todo: check if max meta-episodes is reached in meta-agent
         #       only send a done (m_d) signal if inner env. needs resetting.
         self.frames = episode_frames
-        m_r = self.meta_reward(s0, g, s[:,:,:-1])
         return s[:,:,:-1],m_r,m_d 

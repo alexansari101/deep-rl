@@ -25,7 +25,7 @@ def genNumber(num, width):
 class gameEnv():
     """Environment definition for hierarchical RL"""
     
-    def __init__(self,v_max=1.0,a_max=1.0, num_goals=2):        
+    def __init__(self,v_max=1.0,a_max=1.0, num_goals=1):
         self.a_max = a_max
         self.v_max = v_max        
         self.num_goals = num_goals
