@@ -230,7 +230,7 @@ class H_Env_Wrapper():
         s = self.get_meta_state(s,g)
         s0 = s[:,:,:-1].copy()
         episode_frames.append(self.visualize_meta_state(s))        
-
+        self.agent.start_trial()
         
         while d == False:
             # Take an action using probabilities from policy

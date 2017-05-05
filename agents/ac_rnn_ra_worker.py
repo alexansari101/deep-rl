@@ -92,6 +92,7 @@ class AC_rnn_ra_Worker():
         self.env = game
 
         self.rnn_state = None
+        self.start_rnn_state = None
         self.prev_a = None
 
 
@@ -117,7 +118,7 @@ class AC_rnn_ra_Worker():
 
         # Update the global network using gradients from loss
         # Generate network statistics to periodically save
-        rnn_state = self.local_AC.state_init
+        rnn_state = self.start_rnn_state
         feed_dict = {self.local_AC.target_v:discounted_rewards,
                      # ARA - using np.stack to support Ndarray states
                      self.local_AC.inputs:np.stack(observations),
@@ -159,6 +160,9 @@ class AC_rnn_ra_Worker():
     def reset_agent(self):
         self.rnn_state = self.local_AC.state_init
         self.prev_a = np.array([0]*self.a_size)
+
+    def start_trial(self):
+        self.start_rnn_state = self.rnn_state
                 
         
     def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
