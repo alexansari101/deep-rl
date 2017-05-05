@@ -22,7 +22,7 @@ def get_2lvl_HA3C(env, i, out_folder, global_episodes):
                                trainer, out_folder, global_episodes,
                                hlvl=1)
     env_1 = H_Env_Wrapper(agent_1, global_episodes,
-                          max_ep_len=10, gamma=.9, lam=1,
+                          max_ep_len=50, gamma=.9, lam=1,
                           model_path=out_folder,
                           grid_size=(4,4))
     # env_1.flags['verbose']=True
