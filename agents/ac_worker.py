@@ -126,6 +126,7 @@ class AC_Worker():
         episode_r = 0
 
         self.env.flags['train'] = False
+        self.env.flags['verbose'] = True
 
         printing = True
 
@@ -161,7 +162,7 @@ class AC_Worker():
                 writer.grab_frame()
         plt.close()
         self.env.flags['train'] = True
-    
+        self.env.flags['verbose'] = False
         
     def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
              coord,saver):
