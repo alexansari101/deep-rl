@@ -15,6 +15,7 @@ def get_2lvl_HA3C(env, i, out_folder, global_episodes):
     grid_size = (4,4)
     
     trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
+    m_trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
 
     m_s_shape = env.observation_space.shape
 
@@ -33,7 +34,7 @@ def get_2lvl_HA3C(env, i, out_folder, global_episodes):
                           model_path=out_folder)
     # env_1.flags['verbose']=True
 
-    agent_0 = AC_Worker(env_1, 'agent_0_'+str(i), m_s_shape, m_a_size, trainer,
+    agent_0 = AC_Worker(env_1, 'agent_0_'+str(i), m_s_shape, m_a_size, m_trainer,
                         out_folder, global_episodes)
     return agent_0
 

@@ -156,6 +156,7 @@ class H_Env_Wrapper():
 
         if(self.flags['verbose']):
             print('intrisic episode reward: ' + str(episode_reward))
+            print('subagent length: ' + str(episode_step_count))
 
                 
         # Update the network using the experience buffer at the

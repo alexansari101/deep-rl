@@ -169,7 +169,7 @@ class AC_rnn_ra_Worker():
              coord,saver):
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
-        print("Starting worker " + str(self.number))
+        print("Starting worker " + str(self.name))
         with sess.as_default(), sess.graph.as_default():                 
             while not coord.should_stop():
                 sess.run(self.update_local_ops)
