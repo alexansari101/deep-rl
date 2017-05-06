@@ -143,8 +143,8 @@ class H_Env_Wrapper():
 
             # ARA - todo: make into internal critic or provide a env. wrapper
             i_r,i_d = self.subgoal.intrinsic_reward(s,a,s1,f,m_d)
-            if(self.flags['verbose']):
-                print('i_r: ' + str(i_r))
+            # if(self.flags['verbose']):
+            #     print('i_r: ' + str(i_r))
             s = s1
 
             d = m_d or i_d or episode_step_count == self.max_ep_len-1
