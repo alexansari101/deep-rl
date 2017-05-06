@@ -11,9 +11,6 @@ from agents.ac_network import AC_Network
 from agents.ac_rnn_ra_network import AC_rnn_ra_Network
 import HA3C_2lvl
 
-import sys
-import curses
-import select
 
 def process_args(args):
     """ Additional proccessing for args to load the correct folders for storage"""
