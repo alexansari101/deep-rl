@@ -51,6 +51,7 @@ class H_Env_Wrapper():
         self.episode_lengths = []
         self.episode_mean_values = []
         self.total_step_count = 0
+        self.episode_count = 0
 
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
@@ -153,7 +154,7 @@ class H_Env_Wrapper():
             episode_step_count += 1
             self.total_step_count += 1
                                         
-
+        self.episode_count += 1
         if(self.flags['verbose']):
             print('intrisic episode reward: ' + str(episode_reward))
             print('subagent length: ' + str(episode_step_count))
@@ -167,9 +168,10 @@ class H_Env_Wrapper():
                                                    self.sess,
                                                    self.gamma, self.lam, 0.0)
 
-            episode_count = self.sess.run(self.global_episodes)
 
-            if episode_count % 50 == 0:
+
+            if self.episode_count % 50 == 0:
+                global_ep_count = self.sess.run(self.global_episodes)
 
                 summary = tf.Summary()
                 summary.value.add(tag='Subagent/Perf/Length',
@@ -180,6 +182,8 @@ class H_Env_Wrapper():
                                   simple_value=float(np.mean(episode_values)))
                 summary.value.add(tag='Subagent/Perf/Total Step Count',
                                   simple_value=float(self.total_step_count))
+                summary.value.add(tag='Subagent/Perf/Global Episode Count',
+                                  simple_value=float(global_ep_count))
                 summary.value.add(tag='Subagent/Losses/Value Loss',
                               simple_value=float(v_l))
                 summary.value.add(tag='Subagent/Losses/Policy Loss',
@@ -190,7 +194,7 @@ class H_Env_Wrapper():
                                   simple_value=float(g_n))
                 summary.value.add(tag='Subagent/Losses/Var Norm',
                                   simple_value=float(v_n))
-                self.summary_writer.add_summary(summary, episode_count)
+                self.summary_writer.add_summary(summary, self.episode_count)
                 self.summary_writer.flush()
                     
 

@@ -115,7 +115,7 @@ class AC_rnn_ra_Network():
                     tf.square(self.target_v - tf.reshape(self.value,[-1])))
                 self.entropy = tf.reduce_sum(self.policy_dist.entropy())
                 self.policy_loss = -tf.reduce_sum(
-                    self.policy_dist.log_pdf(self.actions)*self.advantages)
+                    self.policy_dist.log_prob(self.actions)*self.advantages)
                 self.loss = self.value_loss+self.policy_loss-self.entropy*5e-5
 
                 # Get gradients from local network using local losses
