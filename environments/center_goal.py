@@ -15,7 +15,7 @@ from PIL import Image
 class gameEnv():
     """Environment definition for hierarchical RL"""
     
-    def __init__(self,v_max=1.0,a_max=1.0):
+    def __init__(self,v_max=10.0,a_max=1.0):
         self.a_max = a_max
         self.v_max = v_max        
         self.num_goals = 1
@@ -64,9 +64,9 @@ class gameEnv():
 
         self.hero_old = self.hero.copy()
         penalize = 0.0
-        a_m = 10*self.a_max
-        v_m = 10*self.v_max
-        accel = a_m * np.tanh(np.asarray(accel_in)/self.a_max)
+        a_m = self.a_max
+        v_m = self.v_max
+        accel = a_m * np.tanh(np.asarray(accel_in)/a_m)
         self.hero[0] += self.hero[2]
         self.hero[1] += self.hero[3]
         vx = accel[-1] + .9*self.hero[3]
@@ -129,7 +129,12 @@ class gameEnv():
         if reached:
             self.next_goal += 1
         if self.next_goal == len(self.goals):
-            r = 1
+            vx = self.hero[3]
+            vy = self.hero[2]
+            v = np.sqrt(vx**2 + vy**2)
+
+            r = 1 - v/self.v_max #Reward reaching the goal at a slow speed
+            
             d = True
 
         return r,d
