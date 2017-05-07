@@ -187,6 +187,7 @@ class AC_Worker():
                 while d == False:
                     # Take an action using probabilities from policy
                     # network output.
+
                     a_dist,v = sess.run([self.local_AC.policy,
                                         self.local_AC.value], 
                                         feed_dict={self.local_AC.inputs:[s]})
@@ -194,8 +195,8 @@ class AC_Worker():
                     a = np.argmax(a_dist == a)
                     
                     s1,r,d = self.env.step(a)
-#                     if episode_count == 50:
-#                         coord.request_stop()
+
+
                     episode_frames.append(s1)
                     s1 = process_frame(s1)
                     if episode_step_count == max_episode_length-1:
@@ -205,7 +206,8 @@ class AC_Worker():
                     state_values.append(v[0,0])
 
                     episode_reward += r
-                    s = s1                    
+                    s = s1
+
                     total_steps += 1
                     episode_step_count += 1
                                         

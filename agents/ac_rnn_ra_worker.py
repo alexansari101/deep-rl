@@ -45,6 +45,17 @@ import numpy as np
 import tensorflow as tf
 
 from util import update_target_graph, process_frame, discount
+import matplotlib
+
+matplotlib.use('PS')
+#PS can run on parallel threads, TK (default) cannot
+#Probably this command should be moved somewhere else
+
+import matplotlib.pyplot as plt
+import matplotlib.animation as manimation
+import time
+from datetime import timedelta
+
 from agents.ac_rnn_ra_network import AC_rnn_ra_Network
 
 class AC_rnn_ra_Worker():
@@ -81,9 +92,12 @@ class AC_rnn_ra_Worker():
         self.episode_rewards = []
         self.episode_lengths = []
         self.episode_mean_values = []
+        self.movie_path = model_path + "/movies_"
+        self.is_writer = name.endswith('0')
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
                                                     + str(self.name))
 
+        self.hlvl = hlvl
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
         self.local_AC = AC_rnn_ra_Network(s_shape,a_size,self.name,trainer,hlvl)
@@ -167,6 +181,7 @@ class AC_rnn_ra_Worker():
         
     def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
              coord,saver):
+        t0 = time.time()
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
         print("Starting worker " + str(self.name))
@@ -180,27 +195,20 @@ class AC_rnn_ra_Worker():
                 episode_step_count = 0
                 d = False
                 r = 0
-                a = np.array([0]*self.a_size)
+
                 s = self.env.reset()
+                self.reset_agent()
                 episode_frames.append(s)
                 s = process_frame(s)
-                rnn_state = self.local_AC.state_init
+
+                self.start_trial()
 
                 while d == False:
                     # Take an action using probabilities from policy
                     # network output.
-                    feed_dict={self.local_AC.inputs:[s],
-                               self.local_AC.prev_actions:[a],
-                               self.local_AC.prev_rewards:[[r]],
-                               self.local_AC.is_training_ph:False,
-                               self.local_AC.state_in[0]:rnn_state[0],
-                               self.local_AC.state_in[1]:rnn_state[1]}
-                    a,v,rnn_state = sess.run([self.local_AC.sample_a,
-                                              self.local_AC.value,
-                                              self.local_AC.state_out], 
-                                             feed_dict=feed_dict)
-                    
+                    a,v = self.sample_av(s, sess, r)
                     s1,r,d = self.env.step(a)
+                    
 #                     if episode_count == 50:
 #                         coord.request_stop()
                     episode_frames.append(s1)
@@ -229,8 +237,8 @@ class AC_rnn_ra_Worker():
                             self.local_AC.prev_actions:[a],
                             self.local_AC.prev_rewards:[[r]],
                             self.local_AC.is_training_ph:False,
-                            self.local_AC.state_in[0]:rnn_state[0],
-                            self.local_AC.state_in[1]:rnn_state[1]})[0,0] 
+                            self.local_AC.state_in[0]:self.rnn_state[0],
+                            self.local_AC.state_in[1]:self.rnn_state[1]})[0,0] 
                         v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,
                                                          sess,gamma,lam,v1)
                         episode_buffer = []
@@ -243,39 +251,96 @@ class AC_rnn_ra_Worker():
                 # Update the network using the experience buffer at the
                 # end of the episode.
                 if len(episode_buffer) != 0:
-                    v_l,p_l,e_l,g_n,v_n = self.train(global_AC,episode_buffer,
+                    v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,
                                                      sess,gamma,lam,0.0)
                     
                 # Periodically save model parameters, and summary statistics.
                 if episode_count % 5 == 0 and episode_count != 0:
-                    if episode_count % 500 == 0 and self.name == 'worker_0':
+                    if episode_count % 1000 == 0 and self.is_writer:
                         saver.save(sess,self.model_path+'/model-'
                                    +str(episode_count)+'.cptk')
-                        print("Saved Model")
+                        s_dt = str(timedelta(seconds=time.time()-t0))
+                        self.evaluate(sess, episode_count)
+                        print("Saved Model " + str(episode_count) + '\tat time ' + s_dt)
+                        
 
-                    mean_reward = np.mean(self.episode_rewards[-5:])
-                    mean_length = np.mean(self.episode_lengths[-5:])
-                    mean_value = np.mean(self.episode_mean_values[-5:])
-                    summary = tf.Summary()
-                    summary.value.add(tag='Perf/Reward',
-                                      simple_value=float(mean_reward))
-                    summary.value.add(tag='Perf/Length',
-                                      simple_value=float(mean_length))
-                    summary.value.add(tag='Perf/Value',
-                                      simple_value=float(mean_value))
-                    summary.value.add(tag='Losses/Value Loss',
-                                      simple_value=float(v_l))
-                    summary.value.add(tag='Losses/Policy Loss',
-                                      simple_value=float(p_l))
-                    summary.value.add(tag='Losses/Entropy',
-                                      simple_value=float(e_l))
-                    summary.value.add(tag='Losses/Grad Norm',
-                                      simple_value=float(g_n))
-                    summary.value.add(tag='Losses/Var Norm',
-                                      simple_value=float(v_n))
-                    self.summary_writer.add_summary(summary, episode_count)
-                    self.summary_writer.flush()
+                    data = {'Perf/Reward'       : episode_reward,
+                            'Perf/Length'       : episode_step_count,
+                            'Perf/Value'        : np.mean(episode_values),
+                            'Losses/Value Loss' : v_l,
+                            'Losses/Policy Loss': p_l,
+                            'Losses/Entropy'    : e_l,
+                            'Losses/Grad Norm'  : g_n,
+                            'Losses/Var Norm'   : v_n}
+                    self.write_summary(data, episode_count)
                     
-                if self.name == 'worker_0':
+                if self.is_writer:
                     sess.run(self.increment)
                 episode_count += 1
+
+    def write_summary(self, data_dict, ep_count):
+        """Writes summaries to be viewed in tensorboard
+        data_dict is a dictionary of {name:number} pairs"""
+        summary = tf.Summary()
+        prefix = 'agent_lvl_' + str(self.hlvl) + '/'
+        for name in data_dict.keys():
+            summary.value.add(tag=prefix+name,
+                              simple_value=float(data_dict[name]))
+        self.summary_writer.add_summary(summary, ep_count)
+        self.summary_writer.flush()
+
+
+    def evaluate(self, sess, n=0):
+        episode_count = sess.run(self.global_episodes)
+        s = self.env.reset()
+        self.reset_agent()
+        self.start_trial()
+
+        s = process_frame(s)
+        d = False
+        r = 0
+        episode_r = 0
+
+        # self.env.flags['train'] = False
+        # self.env.flags['verbose'] = True
+
+        printing = True
+
+        frames = []
+        
+        while d == False:
+            # a_dist,v = sess.run([self.local_AC.policy,
+            #                      self.local_AC.value], 
+            #                     feed_dict={self.local_AC.inputs:[s]})
+            
+            # a = np.random.choice(a_dist[0],p=a_dist[0])
+            # a = np.argmax(a_dist == a)
+            a, v = self.sample_av(s, sess, r)
+                
+            s1,r,d = self.env.step(a)
+            # frames += self.env.get_frames()
+            frames.append(s1)
+            episode_r += r
+            s = process_frame(s1)
+        print('episode reward: ' + str(episode_r))
+        
+        if not printing:
+            return
+
+        fig = plt.figure()
+
+        l = plt.imshow(frames[0])
+
+        FFMpegWriter = manimation.writers['ffmpeg']
+        metadata = dict(title='Movie Test', artist='Matplotlib',
+                        comment='Movie support!')
+        writer = FFMpegWriter(fps=15, metadata=metadata)
+
+        movie_path = self.movie_path + "episode_" + str(n) + ".mp4"
+        with writer.saving(fig, movie_path, 100):
+            for f in frames:
+                l.set_data(f)
+                writer.grab_frame()
+        plt.close()
+        # self.env.flags['train'] = True
+        # self.env.flags['verbose'] = False
