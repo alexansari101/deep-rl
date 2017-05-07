@@ -64,7 +64,7 @@ def main():  # noqa: D103
     lam = 1                   # .97; discount rate for advantage estimation
     s_shape = [84,84,4]       # Observations are rgb frames 84 x 84 + goal
     a_size = 2                # planar real-valued accelerations
-    m_max_episode_length = 1
+    m_max_episode_length = 50
     m_s_shape = [84,84,3]
     m_a_size = args.grid**2      # Should be a square number
 
@@ -79,9 +79,9 @@ def main():  # noqa: D103
         global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',
                                       trainable=False)
         
-        # m_master_network = AC_Network(m_s_shape,m_a_size,'global_0',None) # meta network
-        # master_network = AC_rnn_ra_Network(m_s_shape,a_size,'global_1',None)
-        master_network = AC_rnn_ra_Network(m_s_shape,a_size,'global_0',None)
+        m_master_network = AC_Network(m_s_shape,m_a_size,'global_0',None) # meta network
+        master_network = AC_rnn_ra_Network(m_s_shape,a_size,'global_1',None)
+        # master_network = AC_rnn_ra_Network(m_s_shape,a_size,'global_0',None)
 
         num_workers = multiprocessing.cpu_count() # number of available CPU threads
         workers = []
@@ -94,12 +94,12 @@ def main():  # noqa: D103
             #                           grid_size = grid_size)
             # workers.append(AC_Worker(m_env,i,m_s_shape,m_a_size,m_trainer,
             #                          args.output,global_episodes))
-            workers.append(AC_rnn_ra_Worker(env, 'agent_' + str(i),
-                                            m_s_shape, a_size, trainer,
-                                            args.output, global_episodes))
-            # meta_agent = HA3C_2lvl.get_2lvl_HA3C(env, i, args.output, global_episodes,
-            #                                      trainer, m_trainer)
-            # workers.append(meta_agent)
+            # workers.append(AC_rnn_ra_Worker(env, 'agent_' + str(i),
+            #                                 m_s_shape, a_size, trainer,
+            #                                 args.output, global_episodes))
+            meta_agent = HA3C_2lvl.get_2lvl_HA3C(env, i, args.output, global_episodes,
+                                                 trainer, m_trainer)
+            workers.append(meta_agent)
             
         saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)
     with tf.Session() as sess:
@@ -113,6 +113,7 @@ def main():  # noqa: D103
             sess.run(tf.global_variables_initializer())
 
         if(args.train):
+
             worker_threads = []
             coord = tf.train.Coordinator()        
             for worker in workers:
@@ -122,6 +123,19 @@ def main():  # noqa: D103
                 t.start()
                 worker_threads.append(t)
             coord.join(worker_threads)
+
+        if(args.debug):
+            #Random things for debugging help
+            worker_threads = []
+            coord = tf.train.Coordinator()
+            for worker in workers:
+                worker.env.sess = sess
+                worker_work = lambda: loop_stepping(worker, coord)
+                t = threading.Thread(target=(worker_work))
+                t.start()
+                worker_threads.append(t)
+            coord.join(worker_threads)
+            
             
         if(args.test):
             for i in range(100):
@@ -150,7 +164,10 @@ def main():  # noqa: D103
                     env.render()
                 
 
-            
+def loop_stepping(worker, coord):
+    while not coord.should_stop():
+        worker.env.reset()
+        worker.env.step(0)
             
 if __name__ == '__main__':
     main()

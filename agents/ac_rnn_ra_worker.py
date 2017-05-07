@@ -195,12 +195,12 @@ class AC_rnn_ra_Worker():
                 episode_step_count = 0
                 d = False
                 r = 0
-                a = np.array([0]*self.a_size)
+
                 s = self.env.reset()
                 self.reset_agent()
                 episode_frames.append(s)
                 s = process_frame(s)
-                self.rnn_state = self.local_AC.state_init
+
                 self.start_trial()
 
                 while d == False:
