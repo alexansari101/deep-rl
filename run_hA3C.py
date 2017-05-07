@@ -80,10 +80,11 @@ def main():  # noqa: D103
                                       trainable=False)
         
         m_master_network = AC_Network(m_s_shape,m_a_size,'global_0',None) # meta network
-        master_network = AC_rnn_ra_Network(m_s_shape,a_size,'global_1',None)
+        master_network = AC_rnn_ra_Network(s_shape,a_size,'global_1',None)
         # master_network = AC_rnn_ra_Network(m_s_shape,a_size,'global_0',None)
 
-        num_workers = multiprocessing.cpu_count() # number of available CPU threads
+        # num_workers = multiprocessing.cpu_count() # number of available CPU threads
+        num_workers = 8 #Hardcode num-workers for consistency across machines
         workers = []
         
         for i in range(num_workers):
@@ -98,7 +99,7 @@ def main():  # noqa: D103
             #                                 m_s_shape, a_size, trainer,
             #                                 args.output, global_episodes))
             meta_agent = HA3C_2lvl.get_2lvl_HA3C(env, i, args.output, global_episodes,
-                                                 trainer, m_trainer)
+                                                 trainer, m_trainer, grid_size)
             workers.append(meta_agent)
             
         saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)

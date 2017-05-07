@@ -39,7 +39,9 @@ def get_output_folder(parent_dir, env_name, load, trial=None):
         trial = get_last_experiment(parent_dir, env_name)
         if not load:
             trial += 1
+            print()
             print('Starting new trial ' + str(trial))
+            print()
         
     parent_dir = os.path.join(parent_dir, env_name)
     parent_dir = parent_dir + '-run{}'.format(trial)
