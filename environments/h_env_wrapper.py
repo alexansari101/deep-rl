@@ -64,7 +64,9 @@ class H_Env_Wrapper():
 
         self.flags = {'render':False,
                       'train':True,
-                      'verbose':False}
+                      'verbose':False,
+                      'debug':agent.is_writer}
+        
         self.frames = [] #frames for saving movies
         self.last_obs = []
 
@@ -128,7 +130,10 @@ class H_Env_Wrapper():
             # Take an action using probabilities from policy
             # network output.
 
-            a, v = self.agent.sample_av(s, self.sess, i_r)
+
+            
+            a, v= self.agent.sample_av(s, self.sess, i_r)
+
 
             s1,f,m_d = self.env.step(a)
             self.last_obs = s1
