@@ -57,8 +57,9 @@ import time
 from datetime import timedelta
 
 from agents.ac_rnn_ra_network import AC_rnn_ra_Network
+from agents.ac_agent_base import AC_Agent_Base
 
-class AC_rnn_ra_Worker():
+class AC_rnn_ra_Worker(AC_Agent_Base):
     """Advantage actor-critic worker with rnn support and meta-learning.
 
     This implementation includes inputs for an rnn, and additional
@@ -81,33 +82,16 @@ class AC_rnn_ra_Worker():
                 episode count
         
         """
-        self.name = name
-        self.s_shape = s_shape
-        self.a_size = a_size
-        self.name = name        
-        self.model_path = model_path
-        self.trainer = trainer
-        self.global_episodes = global_episodes
-        self.increment = self.global_episodes.assign_add(1)
-        self.episode_rewards = []
-        self.episode_lengths = []
-        self.episode_mean_values = []
-        self.movie_path = model_path + "/movies_"
-        self.is_writer = name.endswith('0')
-        self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
-                                                    + str(self.name))
-
-        self.hlvl = hlvl
+        AC_Agent_Base.__init__(self, game, name, s_shape, a_size, trainer, model_path,
+                               global_episodes, hlvl)
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
         self.local_AC = AC_rnn_ra_Network(s_shape,a_size,self.name,trainer,hlvl)
         self.update_local_ops = update_target_graph('global_'+str(hlvl),self.name)  
 
-        self.env = game
-
         self.rnn_state = None
         self.start_rnn_state = None
-        self.prev_a = None
+
 
 
     def train(self,rollout,sess,gamma,lam,bootstrap_value):
@@ -278,69 +262,3 @@ class AC_rnn_ra_Worker():
                     sess.run(self.increment)
                 episode_count += 1
 
-    def write_summary(self, data_dict, ep_count):
-        """Writes summaries to be viewed in tensorboard
-        data_dict is a dictionary of {name:number} pairs"""
-        summary = tf.Summary()
-        prefix = 'agent_lvl_' + str(self.hlvl) + '/'
-        for name in data_dict.keys():
-            summary.value.add(tag=prefix+name,
-                              simple_value=float(data_dict[name]))
-        self.summary_writer.add_summary(summary, ep_count)
-        self.summary_writer.flush()
-
-
-    def evaluate(self, sess, n=0):
-        episode_count = sess.run(self.global_episodes)
-        s = self.env.reset()
-        self.reset_agent()
-        self.start_trial()
-
-        s = process_frame(s)
-        d = False
-        r = 0
-        episode_r = 0
-
-        # self.env.flags['train'] = False
-        # self.env.flags['verbose'] = True
-
-        printing = True
-
-        frames = []
-        
-        while d == False:
-            # a_dist,v = sess.run([self.local_AC.policy,
-            #                      self.local_AC.value], 
-            #                     feed_dict={self.local_AC.inputs:[s]})
-            
-            # a = np.random.choice(a_dist[0],p=a_dist[0])
-            # a = np.argmax(a_dist == a)
-            a, v = self.sample_av(s, sess, r)
-                
-            s1,r,d = self.env.step(a)
-            # frames += self.env.get_frames()
-            frames.append(s1)
-            episode_r += r
-            s = process_frame(s1)
-        print('episode reward: ' + str(episode_r))
-        
-        if not printing:
-            return
-
-        fig = plt.figure()
-
-        l = plt.imshow(frames[0])
-
-        FFMpegWriter = manimation.writers['ffmpeg']
-        metadata = dict(title='Movie Test', artist='Matplotlib',
-                        comment='Movie support!')
-        writer = FFMpegWriter(fps=15, metadata=metadata)
-
-        movie_path = self.movie_path + "episode_" + str(n) + ".mp4"
-        with writer.saving(fig, movie_path, 100):
-            for f in frames:
-                l.set_data(f)
-                writer.grab_frame()
-        plt.close()
-        # self.env.flags['train'] = True
-        # self.env.flags['verbose'] = False

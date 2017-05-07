@@ -41,14 +41,15 @@ from datetime import timedelta
 
 from util import update_target_graph, process_frame, discount
 from agents.ac_network import AC_Network
+from agents.ac_agent_base import AC_Agent_Base
 
-class AC_Worker():
+class AC_Worker(AC_Agent_Base):
     """Simple advantage actor-critic worker with discrete actions.
     
     """
     
     def __init__(self,game,name,s_shape,a_size,trainer,model_path,
-                 global_episodes):
+                 global_episodes, hlvl=0):
         """Initialize the worker environment, AC net, and trainer.
 
         Args:
@@ -62,26 +63,13 @@ class AC_Worker():
                 episode count
         
         """
-        self.name = name
-        self.s_shape = s_shape
-        self.a_size = a_size
-        self.name = name        
-        self.model_path = model_path
-        self.trainer = trainer
-        self.global_episodes = global_episodes
-        self.increment = self.global_episodes.assign_add(1)
-        self.episode_mean_values = []
-        self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
-                                                    + str(self.name))
-        self.movie_path = model_path + "/movies_"
-        self.is_writer = name.endswith('0')
+        AC_Agent_Base.__init__(self, game, name, s_shape, a_size, trainer, model_path,
+                               global_episodes, hlvl)
 
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
         self.local_AC = AC_Network(s_shape,a_size,self.name,trainer)
-        self.update_local_ops = update_target_graph('global_0',self.name)  
 
-        self.env = game
 
     def train(self,global_AC,rollout,sess,gamma,lam,bootstrap_value):
         rollout = np.array(rollout)
@@ -117,52 +105,19 @@ class AC_Worker():
                                          feed_dict=feed_dict)
         return v_l/len(rollout),p_l/len(rollout),e_l/len(rollout),g_n,v_n
 
-    def evaluate(self, sess, n=0):
-        episode_count = sess.run(self.global_episodes)
-        s = self.env.reset()
-        s = process_frame(s)
-        d = False
-        r = 0
-        episode_r = 0
+    def reset_agent(self):
+        pass
 
-        self.env.flags['train'] = False
-        self.env.flags['verbose'] = True
+    def start_trial(self):
+        pass
 
-        printing = True
-
-        frames = []
-        
-        while d == False:
-            a_dist,v = sess.run([self.local_AC.policy,
-                                 self.local_AC.value], 
-                                feed_dict={self.local_AC.inputs:[s]})
-            a = np.random.choice(a_dist[0],p=a_dist[0])
-            a = np.argmax(a_dist == a)
-            s1,r,d = self.env.step(a)
-            frames += self.env.get_frames()
-            episode_r += r
-        print('episode reward: ' + str(episode_r))
-        
-        if not printing:
-            return
-
-        fig = plt.figure()
-
-        l = plt.imshow(frames[0])
-
-        FFMpegWriter = manimation.writers['ffmpeg']
-        metadata = dict(title='Movie Test', artist='Matplotlib',
-                        comment='Movie support!')
-        writer = FFMpegWriter(fps=15, metadata=metadata)
-
-        movie_path = self.movie_path + "episode_" + str(n) + ".mp4"
-        with writer.saving(fig, movie_path, 100):
-            for f in frames:
-                l.set_data(f)
-                writer.grab_frame()
-        plt.close()
-        self.env.flags['train'] = True
-        self.env.flags['verbose'] = False
+    def sample_av(self, s, sess, prev_r):
+        a_dist,v = sess.run([self.local_AC.policy,
+                             self.local_AC.value], 
+                            feed_dict={self.local_AC.inputs:[s]})
+        a = np.random.choice(a_dist[0],p=a_dist[0])
+        a = np.argmax(a_dist == a)
+        return a,v
         
     def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
              coord,saver):
@@ -188,12 +143,8 @@ class AC_Worker():
                     # Take an action using probabilities from policy
                     # network output.
 
-                    a_dist,v = sess.run([self.local_AC.policy,
-                                        self.local_AC.value], 
-                                        feed_dict={self.local_AC.inputs:[s]})
-                    a = np.random.choice(a_dist[0],p=a_dist[0])
-                    a = np.argmax(a_dist == a)
-                    
+                    a, v = self.sample_av(s, sess, None)
+
                     s1,r,d = self.env.step(a)
 
 
@@ -246,28 +197,17 @@ class AC_Worker():
                 # Periodically save model parameters, and summary statistics.
                 if episode_count % 5 == 0 and episode_count != 0:
 
-                    mean_state_value = np.mean(state_values)
-                    summary = tf.Summary()
-                    summary.value.add(tag='Perf/Reward',
-                                      simple_value=float(episode_reward))
-                    summary.value.add(tag='Perf/Episode Length',
-                                      simple_value=float(episode_step_count))
-                    summary.value.add(tag='Perf/Mean State Value',
-                                      simple_value=float(mean_state_value))
-                    summary.value.add(tag='Perf/Global Episodes',
-                                      simple_value=float(sess.run(self.global_episodes)))
-                    summary.value.add(tag='Losses/Value Loss',
-                                      simple_value=float(v_l))
-                    summary.value.add(tag='Losses/Policy Loss',
-                                      simple_value=float(p_l))
-                    summary.value.add(tag='Losses/Entropy',
-                                      simple_value=float(e_l))
-                    summary.value.add(tag='Losses/Grad Norm',
-                                      simple_value=float(g_n))
-                    summary.value.add(tag='Losses/Var Norm',
-                                      simple_value=float(v_n))
-                    self.summary_writer.add_summary(summary, episode_count)
-                    self.summary_writer.flush()
+                    
+                    data = {'Perf/Reward'       : episode_reward,
+                            'Perf/Length'       : episode_step_count,
+                            'Perf/Value'        : np.mean(state_values),
+                            'Perf/Global Ep'    : sess.run(self.global_episodes),
+                            'Losses/Value Loss' : v_l,
+                            'Losses/Policy Loss': p_l,
+                            'Losses/Entropy'    : e_l,
+                            'Losses/Grad Norm'  : g_n,
+                            'Losses/Var Norm'   : v_n}
+                    self.write_summary(data, episode_count)
 
                 if self.is_writer:
                     sess.run(self.increment)
