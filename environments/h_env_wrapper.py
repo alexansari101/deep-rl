@@ -18,7 +18,8 @@ Todo:
 
 import numpy as np
 import tensorflow as tf
-from util import update_target_graph
+from util import update_target_graph, process_frame
+
 
 class H_Env_Wrapper():
     """Wraps an AC agent with rnn support and meta-learning.
@@ -119,32 +120,29 @@ class H_Env_Wrapper():
         i_r = 0
         m_r = 0
         s = self.get_last_obs() # The meta-agent is responsible for resetting
-        s0 = s.copy()
+
+
         self.subgoal.set_meta_action(m_a)
         s = self.subgoal.augment_obs(s)
-
         episode_frames.append(self.subgoal.visualize(s))
-        self.agent.start_trial()
-        
+
+        s = process_frame(s)
+
+        self.agent.start_trial()        
         while d == False:
             # Take an action using probabilities from policy
             # network output.
-
-
-            
-            a, v= self.agent.sample_av(s, self.sess, i_r)
-
-
+            a,v = self.agent.sample_av(s, self.sess, i_r)
             s1,f,m_d = self.env.step(a)
+            s1_raw = s1.copy()
+            
             self.last_obs = s1
             s1 = self.subgoal.augment_obs(s1)
 
             m_r += f
 
             episode_frames.append(self.subgoal.visualize(s1))
-
-            if(self.flags['render']):
-                self.render_meta_state(m_a)
+            s1 = process_frame(s1)
 
             # ARA - todo: make into internal critic or provide a env. wrapper
             i_r,i_d = self.subgoal.intrinsic_reward(s,a,s1,f,m_d)
@@ -180,32 +178,21 @@ class H_Env_Wrapper():
             if self.episode_count % 50 == 0:
                 global_ep_count = self.sess.run(self.global_episodes)
 
-                summary = tf.Summary()
-                summary.value.add(tag='Subagent/Perf/Length',
-                                  simple_value=float(episode_step_count))
-                summary.value.add(tag='Subagent/Perf/Intrinsic Reward',
-                                  simple_value=float(episode_reward))
-                summary.value.add(tag='Subagent/Perf/Value',
-                                  simple_value=float(np.mean(episode_values)))
-                summary.value.add(tag='Subagent/Perf/Total Step Count',
-                                  simple_value=float(self.total_step_count))
-                summary.value.add(tag='Subagent/Perf/Global Episode Count',
-                                  simple_value=float(global_ep_count))
-                summary.value.add(tag='Subagent/Losses/Value Loss',
-                              simple_value=float(v_l))
-                summary.value.add(tag='Subagent/Losses/Policy Loss',
-                                  simple_value=float(p_l))
-                summary.value.add(tag='Subagent/Losses/Entropy',
-                                  simple_value=float(e_l))
-                summary.value.add(tag='Subagent/Losses/Grad Norm',
-                                  simple_value=float(g_n))
-                summary.value.add(tag='Subagent/Losses/Var Norm',
-                                  simple_value=float(v_n))
-                self.summary_writer.add_summary(summary, self.episode_count)
-                self.summary_writer.flush()
+                data = {'Perf/Intrinsic Reward' : episode_reward,
+                        'Perf/Length'           : episode_step_count,
+                        'Perf/Value'            : np.mean(episode_values),
+                        'Perf/Total Step Count' : self.total_step_count,
+                        'Perf/Global Ep Count'  : global_ep_count,
+                        'Losses/Value Loss'     : v_l,
+                        'Losses/Policy Loss'    : p_l,
+                        'Losses/Entropy'        : e_l,
+                        'Losses/Grad Norm'      : g_n,
+                        'Losses/Var Norm'       : v_n}
+
+                self.agent.write_summary(data, self.episode_count)
                     
 
         # ARA - todo: check if max meta-episodes is reached in meta-agent
         #       only send a done (m_d) signal if inner env. needs resetting.
         self.frames = episode_frames
-        return s[:,:,:-1],m_r,m_d 
+        return s1_raw,m_r,m_d 
