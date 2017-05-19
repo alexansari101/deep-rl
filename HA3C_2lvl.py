@@ -8,20 +8,20 @@ from environments.h_env_wrapper import H_Env_Wrapper
 from intrinsics.grid_goal import GridGoal
 from intrinsics.dummy_subgoal import DummyGoal
 
-def get_2lvl_HA3C(env, i, out_folder, global_episodes, trainer, m_trainer):
+def get_2lvl_HA3C(env, i, out_folder, global_episodes, trainer, m_trainer,
+                  grid_size = (4,4)):
 
     """Returns a hierarchical agent
     lvl 1 is AC
     lvl 2 is AC_RNN_RA"""
-    grid_size = (4,4)
     
     # trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
     # m_trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
 
     m_s_shape = env.observation_space.shape
 
-    # subgoal = GridGoal(m_s_shape, grid_size)
-    subgoal = DummyGoal(m_s_shape, grid_size)
+    subgoal = GridGoal(m_s_shape, grid_size)
+    # subgoal = DummyGoal(m_s_shape, grid_size)
 
     s_shape = subgoal.observation_space.shape
     a_size = env.action_space.n

@@ -52,7 +52,7 @@ class GridGoal():
         s: the raw state
         g: the goal mask
         """
-        return np.dstack([process_frame(s),g]) # stack state and goal
+        return np.dstack([s,g]) # stack state and goal
 
     def intrinsic_reward(self,s,a,sp,f,m_d):
         """Intrinsic reward from internal critic in hierarchical RL.
@@ -68,7 +68,7 @@ class GridGoal():
         done: Terminal wrapped_env?
        """
         g = self.mask
-        
+
         done = False
         r = -0.05
         # r = 0.0  
@@ -76,7 +76,8 @@ class GridGoal():
         
         if m_d:
             done = True
-            r = f
+            if f<0:
+                r = f
 
         #small reward for moving slowly
         if np.sum(s[:,:,2].astype(bool)*sp[:,:,2]) > 0:
@@ -84,10 +85,13 @@ class GridGoal():
 
         #large reward if the agent's past and present
         #  state is inside the masked region
+
         if np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
              and np.sum(g.astype(bool)*sp[:,:,2]) > 3.5:
             r += 1
+
             done = True
+
 
         i_r = np.clip(r,-1,1)
 

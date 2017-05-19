@@ -120,13 +120,13 @@ class H_Env_Wrapper():
         i_r = 0
         m_r = 0
         s = self.get_last_obs() # The meta-agent is responsible for resetting
-
+        s = process_frame(s)
 
         self.subgoal.set_meta_action(m_a)
         s = self.subgoal.augment_obs(s)
         episode_frames.append(self.subgoal.visualize(s))
 
-        s = process_frame(s)
+
 
         self.agent.start_trial()        
         while d == False:
@@ -134,15 +134,14 @@ class H_Env_Wrapper():
             # network output.
             a,v = self.agent.sample_av(s, self.sess, i_r)
             s1,f,m_d = self.env.step(a)
-            s1_raw = s1.copy()
-            
-            self.last_obs = s1
+            self.last_obs = s1.copy()
+            s1 = process_frame(s1)
             s1 = self.subgoal.augment_obs(s1)
 
             m_r += f
 
             episode_frames.append(self.subgoal.visualize(s1))
-            s1 = process_frame(s1)
+
 
             # ARA - todo: make into internal critic or provide a env. wrapper
             i_r,i_d = self.subgoal.intrinsic_reward(s,a,s1,f,m_d)
@@ -195,4 +194,4 @@ class H_Env_Wrapper():
         # ARA - todo: check if max meta-episodes is reached in meta-agent
         #       only send a done (m_d) signal if inner env. needs resetting.
         self.frames = episode_frames
-        return s1_raw,m_r,m_d 
+        return self.last_obs, m_r, m_d 
