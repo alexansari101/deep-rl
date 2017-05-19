@@ -83,7 +83,8 @@ def main():  # noqa: D103
         master_network = AC_rnn_ra_Network(s_shape,a_size,'global_1',None)
         # master_network = AC_rnn_ra_Network(m_s_shape,a_size,'global_0',None)
 
-        num_workers = multiprocessing.cpu_count() # number of available CPU threads
+        # num_workers = multiprocessing.cpu_count() # number of available CPU threads
+        num_workers = 8 #Hardcode num-workers for consistency across machines
         workers = []
         
         for i in range(num_workers):

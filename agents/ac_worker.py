@@ -186,7 +186,7 @@ class AC_Worker(AC_Agent_Base):
                     v_l,p_l,e_l,g_n,v_n = self.train(global_AC,episode_buffer,
                                                      sess,gamma,lam,0.0)
 
-                if episode_count % 100 == 0 and self.is_writer:
+                if episode_count % 1000 == 0 and self.is_writer:
                     saver.save(sess,self.model_path+'/model.ckpt', episode_count)
                     self.evaluate(sess, episode_count)
                     
