@@ -72,30 +72,34 @@ class GridGoal():
         m_r = f
 
         done = False
-        r = -0.05
-        # r = 0.0  
+        i_r = -0.05
+        # i_r = 0.0
+
+        hero = s[:,:,2]
+        herop = sp[:,:,2]
 
         
         if m_d:
             done = True
             if f<0:
-                r = f
+                i_r = f
 
         #small reward for moving slowly
-        if np.sum(s[:,:,2].astype(bool)*sp[:,:,2]) > 0:
-            r += 0.05
+        if np.sum(hero.astype(bool)*herop) > 0:
+            i_r += 0.05
 
         #large reward if the agent's past and present
         #  state is inside the masked region
 
-        if np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
-             and np.sum(g.astype(bool)*sp[:,:,2]) > 3.5:
-            r += 1
+        if np.sum(g.astype(bool)*hero) > 3.5 \
+             and np.sum(g.astype(bool)*herop) > 3.5:
+            # r += 1
+            i_r += np.sum(hero.astype(bool)*herop)
 
             done = True
 
 
-        i_r = np.clip(r,-1,1)
+        # i_r = np.clip(i_r,-1,1)
 
         return i_r, m_r, done
 
