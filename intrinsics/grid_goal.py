@@ -65,9 +65,11 @@ class GridGoal():
         g: current goal
         Returns:
         intrinsic_reward: reward based on agreement with the meta goal
+        meta_reward: reward for the meta agent
         done: Terminal wrapped_env?
        """
         g = self.mask
+        m_r = f
 
         done = False
         r = -0.05
@@ -95,7 +97,7 @@ class GridGoal():
 
         i_r = np.clip(r,-1,1)
 
-        return i_r, done
+        return i_r, m_r, done
 
         #Same Reward as Alex Used
         # done = False

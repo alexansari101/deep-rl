@@ -29,7 +29,7 @@ class DummyGoal():
     def intrinsic_reward(self,s,a,sp,f,m_d):
         """Intrinsic reward from internal critic in hierarchical RL.
        """
-        return f, m_d
+        return f, f, m_d
 
 
     # Returns the current environment state

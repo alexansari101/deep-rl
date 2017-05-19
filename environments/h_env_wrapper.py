@@ -138,13 +138,12 @@ class H_Env_Wrapper():
             s1 = process_frame(s1)
             s1 = self.subgoal.augment_obs(s1)
 
-            m_r += f
-
             episode_frames.append(self.subgoal.visualize(s1))
 
 
             # ARA - todo: make into internal critic or provide a env. wrapper
-            i_r,i_d = self.subgoal.intrinsic_reward(s,a,s1,f,m_d)
+            i_r, m_r_step, i_d = self.subgoal.intrinsic_reward(s,a,s1,f,m_d)
+            m_r += m_r_step
             # if(self.flags['verbose']):
             #     print('i_r: ' + str(i_r))
             s = s1
@@ -160,8 +159,8 @@ class H_Env_Wrapper():
                                         
         self.episode_count += 1
         if(self.flags['verbose']):
-            print('total intrisic episode reward: ' + str(episode_reward))
-            print('subagent length: ' + str(episode_step_count))
+            print('\ttotal intrisic episode reward: ' + str(episode_reward))
+            print('\tsubagent length: ' + str(episode_step_count))
 
                 
         # Update the network using the experience buffer at the
