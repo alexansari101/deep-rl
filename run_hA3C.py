@@ -23,7 +23,8 @@ def process_args(args):
     #     args.iter = iter_num
     # else:
     
-    args.output = dir_utils.get_output_folder(args.output, args.env, args.load, args.trial)
+    args.output = dir_utils.get_output_folder(args.output, args.env, args.load, args.trial,
+                                              tmp=args.tmp)
         
     return args
 
@@ -39,6 +40,7 @@ def main():  # noqa: D103
     parser.add_argument('--test', action='store_const', const=True)
     parser.add_argument('--debug', action='store_const', const=True)
     parser.add_argument('--load', action='store_const', const=True)
+    parser.add_argument('--tmp', action='store_const', const=True)
     parser.add_argument('--trial', default=None, type=int, help='The trial number to load')
     parser.add_argument('--iter', default=0, type=int, help='The iter to load CURRENTLY UNUSED')
     parser.add_argument('--grid', default=4, type=int, help='Number of grid squares in a row or column')
@@ -58,8 +60,8 @@ def main():  # noqa: D103
     num_workers = 8 #Hardcode num-workers for consistency across machines
     
     
-    # workers = H_Workers.get_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
-    workers = H_Workers.get_1lvl_ac_rnn(env_factory.get(args.env), num_workers, args.output)
+    workers = H_Workers.get_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
+    # workers = H_Workers.get_1lvl_ac_rnn(env_factory.get(args.env), num_workers, args.output)
     
             
     saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)

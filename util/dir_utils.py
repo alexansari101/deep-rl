@@ -16,7 +16,7 @@ def get_last_experiment(parent_dir, env_name):
     return experiment_id
 
 
-def get_output_folder(parent_dir, env_name, load, trial=None):
+def get_output_folder(parent_dir, env_name, load, trial=None, tmp=False):
     """Return save folder.
 
     Assumes folders in the parent_dir have suffix -run{run
@@ -36,6 +36,13 @@ def get_output_folder(parent_dir, env_name, load, trial=None):
       Path to this run's save directory.
     """
     os.makedirs(parent_dir, exist_ok=True)
+    if tmp:
+        d = os.path.join(parent_dir, 'tmp')
+        for f in os.listdir(d):
+            shutil.rmtree(d+'/'+f)
+        return d
+        
+        
     if trial is None:
         trial = get_last_experiment(parent_dir, env_name)
         if not load:
