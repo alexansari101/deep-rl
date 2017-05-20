@@ -30,8 +30,16 @@ class H_Env_Wrapper():
                  subgoal,
                  global_episodes, # args to Worker.init(...)
                  # args to Worker.work(...)
-                 max_ep_len,gamma,lam,
-                 model_path):
+                 lp, model_path):
+        """Created an intermediate level environment in the hierarchy
+        
+        Args:
+            agent:  the lower level agent (currently must be ac agent)
+            subgoal: the subgoal containing the intrinsic rewards
+            global_episodes: tensor to store global ep count
+            lp: learning parameters
+            model_path: save folder
+        """
 
         self.env = agent.env
         self.subgoal = subgoal
@@ -41,10 +49,12 @@ class H_Env_Wrapper():
         self.global_episodes = global_episodes
         # self.increment = self.global_episodes.assign_add(1)
 
-        self.max_ep_len = max_ep_len
 
-        self.gamma = gamma
-        self.lam = lam
+        self.lam         = lp['lambda']
+        self.max_ep_len  = lp['max_episode_length']
+        self.update_ival = lp['update_ival']
+        self.gamma       = lp['gamma']
+
         self.sess = None
         self.im = None
 
@@ -58,15 +68,14 @@ class H_Env_Wrapper():
         # copy global paramters to local network
         self.agent = agent
         # todo: 'global' -> ?
-        self.update_local_ops = update_target_graph('global_1',agent.name)
+
 
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
                                                     + str(agent.name))
 
         self.flags = {'render':False,
                       'train':True,
-                      'verbose':False,
-                      'debug':agent.is_writer}
+                      'verbose':False}
         
         self.frames = [] #frames for saving movies
         self.last_obs = []
@@ -110,7 +119,7 @@ class H_Env_Wrapper():
             self.summary_writer.add_graph(self.sess.graph)
         
             
-        self.sess.run(self.update_local_ops)
+        self.sess.run(self.agent.update_local_ops)
         episode_buffer = []
         episode_values = []
         episode_frames = []
@@ -124,7 +133,7 @@ class H_Env_Wrapper():
 
         self.subgoal.set_meta_action(m_a)
         s = self.subgoal.augment_obs(s)
-        episode_frames.append(self.subgoal.visualize(s))
+        episode_frames.append((self.subgoal.visualize(s),['i_r  =  0', 'm_r  =  0', 'step = 0']))
 
 
 
@@ -138,7 +147,7 @@ class H_Env_Wrapper():
             s1 = process_frame(s1)
             s1 = self.subgoal.augment_obs(s1)
 
-            episode_frames.append(self.subgoal.visualize(s1))
+
 
 
             # ARA - todo: make into internal critic or provide a env. wrapper
@@ -146,14 +155,24 @@ class H_Env_Wrapper():
             m_r += m_r_step
             # if(self.flags['verbose']):
             #     print('i_r: ' + str(i_r))
-            s = s1
+
 
             d = m_d or i_d or episode_step_count == self.max_ep_len-1
+
+            data = ['i_r  = ' + str(i_r),
+                    'm_r  = ' + str(m_r_step),
+                    'd    = ' + str(d),
+                    'step = ' + str(episode_step_count),
+                    'a    = ' + str(a),
+                    'v    = ' + str(v[0,0])]
+                    
+            episode_frames.append((self.subgoal.visualize(s1), data))
 
                         
             episode_buffer.append([s,a,i_r,s1,d,v[0,0]])
             episode_values.append(v[0,0])
             episode_reward += i_r
+            s = s1
             episode_step_count += 1
             self.total_step_count += 1
                                         

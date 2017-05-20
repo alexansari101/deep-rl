@@ -16,7 +16,7 @@ def get_last_experiment(parent_dir, env_name):
     return experiment_id
 
 
-def get_output_folder(parent_dir, env_name, load, trial=None):
+def get_output_folder(parent_dir, env_name, load, trial=None, tmp=False):
     """Return save folder.
 
     Assumes folders in the parent_dir have suffix -run{run
@@ -36,6 +36,17 @@ def get_output_folder(parent_dir, env_name, load, trial=None):
       Path to this run's save directory.
     """
     os.makedirs(parent_dir, exist_ok=True)
+    if tmp:
+        d = os.path.join(parent_dir, 'tmp')
+        for f in os.listdir(d):
+            p = d+'/'+f
+            if os.path.isfile(p):
+                os.remove(p)
+            else:
+                shutil.rmtree(p)
+        return d
+        
+        
     if trial is None:
         trial = get_last_experiment(parent_dir, env_name)
         if not load:
@@ -68,3 +79,9 @@ def copy_files(outdir):
             
         
     
+def write_readme(outdir):
+    inp = input('Write something about this trial:\n')
+    target = open(outdir + '/readme', 'w')
+    target.write(inp + '\n')
+    target.close()
+    print('Great! Starting work')

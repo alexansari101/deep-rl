@@ -67,7 +67,7 @@ class AC_Agent_Base():
     """
     
     def __init__(self,game,name,s_shape,a_size,trainer,model_path,
-                 global_episodes, hlvl=0):
+                 global_episodes, lp, hlvl):
         """Initialize the worker environment, AC net, and trainer.
 
         Args:
@@ -79,12 +79,13 @@ class AC_Agent_Base():
             model_path: folder under which to save the model
             global_episodes: a tensorflow tensor to store the global
                 episode count
-        
+            lp: learning params
+            hlvl: hierarchy level (0 for highest lvl agent)
         """
         self.name = name
         self.s_shape = s_shape
         self.a_size = a_size
-        self.name = name        
+
         self.model_path = model_path
         self.trainer = trainer
         self.global_episodes = global_episodes
@@ -97,11 +98,18 @@ class AC_Agent_Base():
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
                                                     + str(self.name))
 
+        #learning params
+        self.lam         = lp['lambda']
+        self.max_ep      = lp['max_episode_length']
+        self.update_ival = lp['update_ival']
+        self.gamma       = lp['gamma']
+        
+
         self.hlvl = hlvl
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
-        self.update_local_ops = update_target_graph('global_'+str(hlvl),self.name)  
-
+        self.update_local_ops = None #Must be defined after local_AC, so the variables exist in tf
+        
         self.env = game
         self.prev_a = None
 
@@ -120,8 +128,7 @@ class AC_Agent_Base():
     def start_trial(self):
         raise Exception("NotImplementedException")
         
-    def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
-             coord,saver):
+    def work(self, sess, coord, saver):
         raise Exception("NotImplementedException")
 
     def write_summary(self, data_dict, ep_count):
@@ -142,6 +149,8 @@ class AC_Agent_Base():
         self.reset_agent()
         self.start_trial()
 
+        step = 0
+        
         s = process_frame(s)
         d = False
         r = 0
@@ -157,7 +166,7 @@ class AC_Agent_Base():
 
         frames = []
         
-        while d == False:
+        while d == False and step < self.max_ep:
             a, v = self.sample_av(s, sess, r)
                 
             s1,r,d = self.env.step(a)
@@ -165,28 +174,50 @@ class AC_Agent_Base():
             if is_meta:
                 frames += self.env.get_frames()
             else:
-                frames.append(s1)
+                data = ['r = ' + str(r),
+                        'd = ' + str(d),
+                        'v = ' + str(v),
+                        'a = ' + str(a),
+                        'step = ' + str(step)]
+                frames.append((s1, data))
                 
             episode_r += r
             s = process_frame(s1)
+            step += 1
+
         print('episode reward: ' + str(episode_r))
         
         if not printing:
             return
 
         fig = plt.figure()
+        f, d = frames[0]
+        lf_sp = fig.add_subplot(121)
+        l = plt.imshow(f)
+        data_plot = fig.add_subplot(122)
 
-        l = plt.imshow(frames[0])
+
+        plt.imshow(np.ones(f.shape))
+        plt.axis('off')
 
         FFMpegWriter = manimation.writers['ffmpeg']
-        metadata = dict(title='Movie Test', artist='Matplotlib',
+        metadata = dict(title='Episode '+str(n), artist='Matplotlib',
                         comment='Movie support!')
         writer = FFMpegWriter(fps=15, metadata=metadata)
 
         movie_path = self.movie_path + "episode_" + str(n) + ".mp4"
         with writer.saving(fig, movie_path, 100):
-            for f in frames:
+            for f, data in frames:
                 l.set_data(f)
+                
+                data_plot.cla()
+                data_plot.axis('off')
+
+                h = 3
+                for text in data:
+                    data_plot.text(1,h, text)
+                    h+=8
+                
                 writer.grab_frame()
         plt.close()
 

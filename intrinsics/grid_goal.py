@@ -62,7 +62,7 @@ class GridGoal():
         a: action
         sp: state/255 after taking action
         f: extrinsic reward
-        g: current goal
+        m_d: terminal state
         Returns:
         intrinsic_reward: reward based on agreement with the meta goal
         meta_reward: reward for the meta agent
@@ -70,33 +70,34 @@ class GridGoal():
        """
         g = self.mask
         m_r = f
-
-        done = False
-        i_r = -0.05
-        # i_r = 0.0
+        i_r = 0
 
         hero = s[:,:,2]
         herop = sp[:,:,2]
 
-        
-        if m_d:
-            done = True
-            if f<0:
-                i_r = f
+        done = m_d #Maybe want to make this more complex in the future
+
+
+        if done and m_r < 0:
+            return m_r, m_r, True
+
 
         #small reward for moving slowly
-        if np.sum(hero.astype(bool)*herop) > 0:
-            i_r += 0.05
+        # if np.sum(hero.astype(bool)*herop) > 0:
+        #     i_r += 0.05
 
         #large reward if the agent's past and present
         #  state is inside the masked region
 
-        if np.sum(g.astype(bool)*hero) > 3.5 \
-             and np.sum(g.astype(bool)*herop) > 3.5:
+        # if np.sum(g.astype(bool)*hero) > 3.5 \
+        #      and np.sum(g.astype(bool)*herop) > 3.5:
+        if np.sum(g.astype(bool)*hero) > 3.5:
             # r += 1
-            i_r += np.sum(hero.astype(bool)*herop)
+            # i_r += np.sum(hero.astype(bool)*herop)
+            i_r += m_r #Only give sub agent the m_r if it agrees with goal
+            i_r += 0.05 #Make the sub agent go to the meta goal, even if there is no external reward
 
-            done = True
+            # done = True
 
 
         # i_r = np.clip(i_r,-1,1)
@@ -149,5 +150,5 @@ class GridGoal():
         """
         sf = s[:,:,:-1].copy()
         sf[:,:,1] += 0.5*s[:,:,-1]
-        sf[:,:,1] /= np.max(sf[:,:,1])
+        sf[:,:,1] = np.clip(sf[:,:,1],0,1)
         return sf

@@ -27,14 +27,7 @@ Todo:
 """
 
 import numpy as np
-import matplotlib
 
-matplotlib.use('PS')
-#PS can run on parallel threads, TK (default) cannot
-#Probably this command should be moved somewhere else
-
-import matplotlib.pyplot as plt
-import matplotlib.animation as manimation
 import tensorflow as tf
 import time
 from datetime import timedelta
@@ -49,7 +42,7 @@ class AC_Worker(AC_Agent_Base):
     """
     
     def __init__(self,game,name,s_shape,a_size,trainer,model_path,
-                 global_episodes, hlvl=0):
+                 global_episodes, learning_params, hlvl=0):
         """Initialize the worker environment, AC net, and trainer.
 
         Args:
@@ -64,14 +57,15 @@ class AC_Worker(AC_Agent_Base):
         
         """
         AC_Agent_Base.__init__(self, game, name, s_shape, a_size, trainer, model_path,
-                               global_episodes, hlvl)
+                               global_episodes, learning_params, hlvl)
 
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
-        self.local_AC = AC_Network(s_shape,a_size,self.name,trainer)
+        self.local_AC = AC_Network(s_shape,a_size,self.name,trainer, hlvl)
+        self.update_local_ops = update_target_graph('global_'+str(hlvl),self.name)  
 
 
-    def train(self,global_AC,rollout,sess,gamma,lam,bootstrap_value):
+    def train(self,rollout,sess,gamma,lam,bootstrap_value):
         rollout = np.array(rollout)
         observations = rollout[:,0]
         actions = rollout[:,1]
@@ -119,8 +113,10 @@ class AC_Worker(AC_Agent_Base):
         a = np.argmax(a_dist == a)
         return a,v
         
-    def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
-             coord,saver):
+    def work(self,sess,coord,saver):
+        gamma = self.gamma
+        lam = self.lam
+
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
         t0 = time.time()
@@ -150,7 +146,7 @@ class AC_Worker(AC_Agent_Base):
 
                     episode_frames.append(s1)
                     s1 = process_frame(s1)
-                    if episode_step_count == max_episode_length-1:
+                    if episode_step_count == self.max_ep - 1:
                         d = True
                         
                     episode_buffer.append([s,a,r,s1,d,v[0,0]])
@@ -165,16 +161,15 @@ class AC_Worker(AC_Agent_Base):
                     # If the episode hasn't ended, but the experience
                     # buffer is full, then we make an update step using
                     # that experience rollout.
-                    if len(episode_buffer) == update_ival and d != True and \
-                       episode_step_count != max_episode_length - 1:
+                    if len(episode_buffer) == self.update_ival and \
+                       d != True and \
+                       episode_step_count != self.max_ep - 1:
                         # Since we don't know what the true final return
                         # is, we "bootstrap" from our current value
                         # estimation.
                         v1 = sess.run(self.local_AC.value, 
                             feed_dict={self.local_AC.inputs:[s]})[0,0]
-                        v_l,p_l,e_l,g_n,v_n = self.train(global_AC,
-                                                         episode_buffer,
-                                                         sess,gamma,lam,v1)
+                        v_l,p_l,e_l,g_n,v_n = self.train(sess,gamma,lam,v1)
                         episode_buffer = []
                         sess.run(self.update_local_ops)
 
@@ -183,10 +178,10 @@ class AC_Worker(AC_Agent_Base):
                 # Update the network using the experience buffer at the
                 # end of the episode.
                 if len(episode_buffer) != 0:
-                    v_l,p_l,e_l,g_n,v_n = self.train(global_AC,episode_buffer,
+                    v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,
                                                      sess,gamma,lam,0.0)
 
-                if episode_count % 1000 == 0 and self.is_writer:
+                if episode_count % 100 == 0 and self.is_writer:
                     saver.save(sess,self.model_path+'/model.ckpt', episode_count)
                     self.evaluate(sess, episode_count)
                     
@@ -197,7 +192,7 @@ class AC_Worker(AC_Agent_Base):
                 # Periodically save model parameters, and summary statistics.
                 if episode_count % 5 == 0 and episode_count != 0:
 
-                    
+                
                     data = {'Perf/Reward'       : episode_reward,
                             'Perf/Length'       : episode_step_count,
                             'Perf/Value'        : np.mean(state_values),
