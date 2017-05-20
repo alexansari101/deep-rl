@@ -39,7 +39,11 @@ def get_output_folder(parent_dir, env_name, load, trial=None, tmp=False):
     if tmp:
         d = os.path.join(parent_dir, 'tmp')
         for f in os.listdir(d):
-            shutil.rmtree(d+'/'+f)
+            p = d+'/'+f
+            if os.path.isfile(p):
+                os.remove(p)
+            else:
+                shutil.rmtree(p)
         return d
         
         
