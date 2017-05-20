@@ -50,6 +50,8 @@ def main():  # noqa: D103
     args = process_args(args)
 
     dir_utils.copy_files(args.output)
+    if not args.tmp:
+        dir_utils.write_readme(args.output)
 
     update_ival = np.inf      # train after this many steps if < max_episode_length
     gamma = .99               # discount rate for reward discounting

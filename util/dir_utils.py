@@ -79,3 +79,9 @@ def copy_files(outdir):
             
         
     
+def write_readme(outdir):
+    inp = input('Write something about this trial:\n')
+    target = open(outdir + '/readme', 'w')
+    target.write(inp + '\n')
+    target.close()
+    print('Great! Starting work')
