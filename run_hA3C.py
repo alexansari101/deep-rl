@@ -58,7 +58,8 @@ def main():  # noqa: D103
     num_workers = 8 #Hardcode num-workers for consistency across machines
     
     
-    workers = H_Workers.get_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
+    # workers = H_Workers.get_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
+    workers = H_Workers.get_1lvl_ac_rnn(env_factory.get(args.env), num_workers, args.output)
     
             
     saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)

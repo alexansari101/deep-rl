@@ -27,12 +27,9 @@ def get_2lvl_HA3C(env_gen, num_workers, out_folder,
         s_shape = subgoal.observation_space.shape
         a_size = env.action_space.n
         m_a_size = subgoal.action_space.n
-
             
         m_master_network = AC_Network(m_s_shape,m_a_size,'global_0',None) # meta network
         master_network = AC_rnn_ra_Network(s_shape,a_size,'global_1',None)
-
-
 
         workers = []
         
@@ -62,6 +59,28 @@ def get_2lvl_HA3C(env_gen, num_workers, out_folder,
             workers.append(agent_0)
 
         return workers
+
+def get_1lvl_ac_rnn(env_gen, num_workers, out_folder):
+    with tf.device("/cpu:0"):
+        trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
+        global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',
+                                          trainable=False)
+        env = env_gen()
+        s_shape = env.observation_space.shape
+        a_size = env.action_space.n
+            
+        master_network = AC_rnn_ra_Network(s_shape,a_size,'global_0',None)
+
+        workers = []
+        
+        for i in range(num_workers):
+            env = env_gen()
+            workers.append(AC_rnn_ra_Worker(env, 'agent_' + str(i),
+                                            s_shape, a_size, trainer,
+                                            out_folder, global_episodes))
+
+        return workers
+
 
 
 if __name__ == '__main__':

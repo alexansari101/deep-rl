@@ -163,7 +163,7 @@ class AC_rnn_ra_Worker(AC_Agent_Base):
         self.start_rnn_state = self.rnn_state
                 
         
-    def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
+    def work(self,max_episode_length,update_ival,gamma,lam,sess,
              coord,saver):
         t0 = time.time()
         episode_count = sess.run(self.global_episodes)
@@ -239,14 +239,14 @@ class AC_rnn_ra_Worker(AC_Agent_Base):
                                                      sess,gamma,lam,0.0)
                     
                 # Periodically save model parameters, and summary statistics.
+                if episode_count % 1000 == 0 and self.is_writer:
+                    saver.save(sess,self.model_path+'/model-'
+                               +str(episode_count)+'.cptk')
+                    s_dt = str(timedelta(seconds=time.time()-t0))
+                    self.evaluate(sess, episode_count)
+                    print("Saved Model " + str(episode_count) + '\tat time ' + s_dt)
+
                 if episode_count % 5 == 0 and episode_count != 0:
-                    if episode_count % 1000 == 0 and self.is_writer:
-                        saver.save(sess,self.model_path+'/model-'
-                                   +str(episode_count)+'.cptk')
-                        s_dt = str(timedelta(seconds=time.time()-t0))
-                        self.evaluate(sess, episode_count)
-                        print("Saved Model " + str(episode_count) + '\tat time ' + s_dt)
-                        
 
                     data = {'Perf/Reward'       : episode_reward,
                             'Perf/Length'       : episode_step_count,
