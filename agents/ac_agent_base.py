@@ -175,18 +175,33 @@ class AC_Agent_Base():
             return
 
         fig = plt.figure()
+        f, d = frames[0]
+        lf_sp = fig.add_subplot(121)
+        l = plt.imshow(f)
+        data_plot = fig.add_subplot(122)
 
-        l = plt.imshow(frames[0])
+
+        plt.imshow(np.ones(f.shape))
+        plt.axis('off')
 
         FFMpegWriter = manimation.writers['ffmpeg']
-        metadata = dict(title='Movie Test', artist='Matplotlib',
+        metadata = dict(title='Episode '+str(n), artist='Matplotlib',
                         comment='Movie support!')
         writer = FFMpegWriter(fps=15, metadata=metadata)
 
         movie_path = self.movie_path + "episode_" + str(n) + ".mp4"
         with writer.saving(fig, movie_path, 100):
-            for f in frames:
+            for f, data in frames:
                 l.set_data(f)
+                
+                data_plot.cla()
+                data_plot.axis('off')
+
+                h = 3
+                for text in data:
+                    data_plot.text(1,h, text)
+                    h+=8
+                
                 writer.grab_frame()
         plt.close()
 

@@ -124,7 +124,7 @@ class H_Env_Wrapper():
 
         self.subgoal.set_meta_action(m_a)
         s = self.subgoal.augment_obs(s)
-        episode_frames.append(self.subgoal.visualize(s))
+        episode_frames.append((self.subgoal.visualize(s),['i_r  =  0', 'm_r  =  0', 'step = 0']))
 
 
 
@@ -138,7 +138,7 @@ class H_Env_Wrapper():
             s1 = process_frame(s1)
             s1 = self.subgoal.augment_obs(s1)
 
-            episode_frames.append(self.subgoal.visualize(s1))
+
 
 
             # ARA - todo: make into internal critic or provide a env. wrapper
@@ -149,6 +149,12 @@ class H_Env_Wrapper():
             s = s1
 
             d = m_d or i_d or episode_step_count == self.max_ep_len-1
+
+            data = ['i_r  = ' + str(i_r),
+                    'm_r  = ' + str(m_r_step),
+                    'step = ' + str(episode_step_count)]
+                    
+            episode_frames.append((self.subgoal.visualize(s1), data))
 
                         
             episode_buffer.append([s,a,i_r,s1,d,v[0,0]])
