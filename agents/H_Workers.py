@@ -35,16 +35,8 @@ def get_2lvl_HA3C(env_gen, num_workers, out_folder,
         
         for i in range(num_workers):
             env = env_gen()
-            # m_env = AC_rnn_ra_Wrapper(env,i,s_shape, a_size, trainer,
-            #                           global_episodes, max_episode_length,
-            #                           update_ival, gamma, lam, args.output,
-            #                           grid_size = grid_size)
-            # workers.append(AC_Worker(m_env,i,m_s_shape,m_a_size,m_trainer,
-            #                          args.output,global_episodes))
-            # workers.append(AC_rnn_ra_Worker(env, 'agent_' + str(i),
-            #                                 m_s_shape, a_size, trainer,
-            #                                 args.output, global_episodes))
 
+            subgoal = GridGoal(m_s_shape, grid_size)
             agent_1 = AC_rnn_ra_Worker(env, 'agent_1_'+str(i), s_shape, a_size,
                                        trainer, out_folder, global_episodes,
                                        hlvl=1)
