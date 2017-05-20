@@ -71,7 +71,7 @@ class AC_Worker(AC_Agent_Base):
         self.local_AC = AC_Network(s_shape,a_size,self.name,trainer)
 
 
-    def train(self,global_AC,rollout,sess,gamma,lam,bootstrap_value):
+    def train(self,rollout,sess,gamma,lam,bootstrap_value):
         rollout = np.array(rollout)
         observations = rollout[:,0]
         actions = rollout[:,1]
@@ -119,7 +119,7 @@ class AC_Worker(AC_Agent_Base):
         a = np.argmax(a_dist == a)
         return a,v
         
-    def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
+    def work(self,max_episode_length,update_ival,gamma,lam,sess,
              coord,saver):
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
@@ -172,9 +172,7 @@ class AC_Worker(AC_Agent_Base):
                         # estimation.
                         v1 = sess.run(self.local_AC.value, 
                             feed_dict={self.local_AC.inputs:[s]})[0,0]
-                        v_l,p_l,e_l,g_n,v_n = self.train(global_AC,
-                                                         episode_buffer,
-                                                         sess,gamma,lam,v1)
+                        v_l,p_l,e_l,g_n,v_n = self.train(sess,gamma,lam,v1)
                         episode_buffer = []
                         sess.run(self.update_local_ops)
 
@@ -183,7 +181,7 @@ class AC_Worker(AC_Agent_Base):
                 # Update the network using the experience buffer at the
                 # end of the episode.
                 if len(episode_buffer) != 0:
-                    v_l,p_l,e_l,g_n,v_n = self.train(global_AC,episode_buffer,
+                    v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,
                                                      sess,gamma,lam,0.0)
 
                 if episode_count % 1000 == 0 and self.is_writer:
@@ -197,7 +195,7 @@ class AC_Worker(AC_Agent_Base):
                 # Periodically save model parameters, and summary statistics.
                 if episode_count % 5 == 0 and episode_count != 0:
 
-                    
+                
                     data = {'Perf/Reward'       : episode_reward,
                             'Perf/Length'       : episode_step_count,
                             'Perf/Value'        : np.mean(state_values),

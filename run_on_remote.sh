@@ -14,7 +14,7 @@ echo "Running in $remote_proj"
 
 ssh $remote "mkdir -p $proj_dir"
 #Copy files over
-declare -a cp_files=("run_hA3C.py" "HA3C_2lvl.py")
+declare -a cp_files=("run_hA3C.py")
 for f in "${cp_files[@]}"
 do
     scp $f $remote_proj >> /dev/null

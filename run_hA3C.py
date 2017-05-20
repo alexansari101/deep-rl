@@ -4,6 +4,7 @@ from util import dir_utils
 from agents.ac_worker import AC_Worker
 import environments
 from environments.ac_rnn_ra_wrapper import AC_rnn_ra_Wrapper
+from environments import env_factory
 import argparse
 import numpy as np
 import tensorflow as tf
@@ -12,7 +13,7 @@ import multiprocessing
 from agents.ac_network import AC_Network
 from agents.ac_rnn_ra_network import AC_rnn_ra_Network
 from agents.ac_rnn_ra_worker import AC_rnn_ra_Worker
-import HA3C_2lvl
+from agents import H_Workers
 
 
 def process_args(args):
@@ -25,19 +26,6 @@ def process_args(args):
     args.output = dir_utils.get_output_folder(args.output, args.env, args.load, args.trial)
         
     return args
-
-def load_env(env_name, ):
-    if env_name == "Waypoints":
-        return environments.waypoint_planner.gameEnv()
-    if env_name == "Search":
-        return environments.hregion_search.gameEnv()
-    if env_name == "Center":
-        return environments.center_goal.gameEnv()
-    if env_name == "RandRegion":
-        return environments.random_goal.gameEnv()
-    
-    raise ValueError('Unknown environment name: ' + str(env_name))
-
 
 
 def main():  # noqa: D103
@@ -61,51 +49,19 @@ def main():  # noqa: D103
 
     dir_utils.copy_files(args.output)
 
-    max_episode_length = 50
     update_ival = np.inf      # train after this many steps if < max_episode_length
     gamma = .99               # discount rate for reward discounting
     lam = 1                   # .97; discount rate for advantage estimation
-    s_shape = [84,84,4]       # Observations are rgb frames 84 x 84 + goal
-    a_size = 2                # planar real-valued accelerations
     m_max_episode_length = 50
-    m_s_shape = [84,84,3]
-    m_a_size = args.grid**2      # Should be a square number
-
+    
+    # num_workers = multiprocessing.cpu_count() # number of available CPU threads
+    num_workers = 8 #Hardcode num-workers for consistency across machines
     
     
-    # grid_size = (int(np.sqrt(m_a_size)), int(np.sqrt(m_a_size)))
-    grid_size = (args.grid, args.grid)
+    workers = H_Workers.get_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
     
-    with tf.device("/cpu:0"):
-        m_trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
-        trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
-        global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',
-                                      trainable=False)
-        
-        m_master_network = AC_Network(m_s_shape,m_a_size,'global_0',None) # meta network
-        master_network = AC_rnn_ra_Network(s_shape,a_size,'global_1',None)
-        # master_network = AC_rnn_ra_Network(m_s_shape,a_size,'global_0',None)
-
-        # num_workers = multiprocessing.cpu_count() # number of available CPU threads
-        num_workers = 8 #Hardcode num-workers for consistency across machines
-        workers = []
-        
-        for i in range(num_workers):
-            env = load_env(args.env)
-            # m_env = AC_rnn_ra_Wrapper(env,i,s_shape, a_size, trainer,
-            #                           global_episodes, max_episode_length,
-            #                           update_ival, gamma, lam, args.output,
-            #                           grid_size = grid_size)
-            # workers.append(AC_Worker(m_env,i,m_s_shape,m_a_size,m_trainer,
-            #                          args.output,global_episodes))
-            # workers.append(AC_rnn_ra_Worker(env, 'agent_' + str(i),
-            #                                 m_s_shape, a_size, trainer,
-            #                                 args.output, global_episodes))
-            meta_agent = HA3C_2lvl.get_2lvl_HA3C(env, i, args.output, global_episodes,
-                                                 trainer, m_trainer, grid_size)
-            workers.append(meta_agent)
             
-        saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)
+    saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)
     with tf.Session() as sess:
 
         if args.load:
@@ -122,7 +78,7 @@ def main():  # noqa: D103
             coord = tf.train.Coordinator()        
             for worker in workers:
                 worker_work = lambda: worker.work(m_max_episode_length,update_ival,gamma,
-                                                  lam,master_network,sess,coord,saver)
+                                                  lam,sess,coord,saver)
                 t = threading.Thread(target=(worker_work))
                 t.start()
                 worker_threads.append(t)
