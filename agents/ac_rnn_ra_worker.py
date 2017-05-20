@@ -182,7 +182,7 @@ class AC_rnn_ra_Worker(AC_Agent_Base):
 
                 s = self.env.reset()
                 self.reset_agent()
-                episode_frames.append(s)
+                episode_frames.append((s,['']))
                 s = process_frame(s)
 
                 self.start_trial()
@@ -195,10 +195,14 @@ class AC_rnn_ra_Worker(AC_Agent_Base):
                     
 #                     if episode_count == 50:
 #                         coord.request_stop()
-                    episode_frames.append(s1)
+
                     s1 = process_frame(s1)
                     if episode_step_count == max_episode_length-1:
                         d = True
+
+                    data = ['r = ' + str(r),
+                            'd = ' + str(d)]
+                    episode_frames.append((s1, data))
                         
                     episode_buffer.append([s,a,r,s1,d,v[0,0]])
                     episode_values.append(v[0,0])

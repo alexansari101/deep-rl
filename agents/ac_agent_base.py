@@ -165,7 +165,10 @@ class AC_Agent_Base():
             if is_meta:
                 frames += self.env.get_frames()
             else:
-                frames.append(s1)
+                data = ['r = ' + str(r),
+                        'd = ' + str(d),
+                        'v = ' + str(v)]
+                frames.append((s1, data))
                 
             episode_r += r
             s = process_frame(s1)
