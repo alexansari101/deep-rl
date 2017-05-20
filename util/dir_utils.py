@@ -1,4 +1,5 @@
 import os
+import shutil
 
 def get_last_experiment(parent_dir, env_name):
     """Searches through directory for highest numbered experiement"""
@@ -48,3 +49,22 @@ def get_output_folder(parent_dir, env_name, load, trial=None):
 
     return parent_dir
 
+def copy_files(outdir):
+    """Copies files to the outdir to store complete script with each trial"""
+    codedir = outdir+"/code"
+    os.makedirs(codedir)
+
+    code = []
+    exclude = set(['trials'])
+    for root, dirs, files in os.walk(".", topdown=True):
+        dirs[:] = [d for d in dirs if d not in exclude]
+        for f in files:
+            if not f.endswith('.py'):
+                continue
+            code += [(root,f)]
+    for r, f in code:
+        os.makedirs(codedir+'/'+r, exist_ok=True)
+        shutil.copy2(r+'/'+f, codedir+'/'+r+'/'+f)
+            
+        
+    
