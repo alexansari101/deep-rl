@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from util import dir_utils
 from agents.ac_worker import AC_Worker
 import environments
@@ -57,6 +59,7 @@ def main():  # noqa: D103
     args = parser.parse_args()
     args = process_args(args)
 
+    dir_utils.copy_files(args.output)
 
     max_episode_length = 50
     update_ival = np.inf      # train after this many steps if < max_episode_length
@@ -69,7 +72,7 @@ def main():  # noqa: D103
     m_a_size = args.grid**2      # Should be a square number
 
     
-
+    
     # grid_size = (int(np.sqrt(m_a_size)), int(np.sqrt(m_a_size)))
     grid_size = (args.grid, args.grid)
     
