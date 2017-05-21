@@ -67,7 +67,7 @@ class AC_Agent_Base():
     """
     
     def __init__(self,game,name,s_shape,a_size,trainer,model_path,
-                 global_episodes, hlvl=0):
+                 global_episodes, lp, hlvl):
         """Initialize the worker environment, AC net, and trainer.
 
         Args:
@@ -79,7 +79,8 @@ class AC_Agent_Base():
             model_path: folder under which to save the model
             global_episodes: a tensorflow tensor to store the global
                 episode count
-        
+            lp: learning params
+            hlvl: hierarchy level (0 for highest lvl agent)
         """
         self.name = name
         self.s_shape = s_shape
@@ -96,6 +97,13 @@ class AC_Agent_Base():
         self.is_writer = name.endswith('0')
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
                                                     + str(self.name))
+
+        #learning params
+        self.lam         = lp['lambda']
+        self.max_ep      = lp['max_episode_length']
+        self.update_ival = lp['update_ival']
+        self.gamma       = lp['gamma']
+        
 
         self.hlvl = hlvl
         # Create the local copy of the network and the tensorflow op to
@@ -120,8 +128,7 @@ class AC_Agent_Base():
     def start_trial(self):
         raise Exception("NotImplementedException")
         
-    def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
-             coord,saver):
+    def work(self, sess, coord, saver):
         raise Exception("NotImplementedException")
 
     def write_summary(self, data_dict, ep_count):
@@ -142,6 +149,8 @@ class AC_Agent_Base():
         self.reset_agent()
         self.start_trial()
 
+        step = 0
+        
         s = process_frame(s)
         d = False
         r = 0
@@ -157,7 +166,7 @@ class AC_Agent_Base():
 
         frames = []
         
-        while d == False:
+        while d == False and step < self.max_ep:
             a, v = self.sample_av(s, sess, r)
                 
             s1,r,d = self.env.step(a)
@@ -167,11 +176,15 @@ class AC_Agent_Base():
             else:
                 data = ['r = ' + str(r),
                         'd = ' + str(d),
-                        'v = ' + str(v)]
+                        'v = ' + str(v),
+                        'a = ' + str(a),
+                        'step = ' + str(step)]
                 frames.append((s1, data))
                 
             episode_r += r
             s = process_frame(s1)
+            step += 1
+
         print('episode reward: ' + str(episode_r))
         
         if not printing:

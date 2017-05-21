@@ -45,14 +45,7 @@ import numpy as np
 import tensorflow as tf
 
 from util import update_target_graph, process_frame, discount
-import matplotlib
 
-matplotlib.use('PS')
-#PS can run on parallel threads, TK (default) cannot
-#Probably this command should be moved somewhere else
-
-import matplotlib.pyplot as plt
-import matplotlib.animation as manimation
 import time
 from datetime import timedelta
 
@@ -68,7 +61,7 @@ class AC_rnn_ra_Worker(AC_Agent_Base):
     """
     
     def __init__(self,game,name,s_shape,a_size,trainer,model_path,
-                 global_episodes, hlvl=0):
+                 global_episodes, learning_params, hlvl=0):
         """Initialize the worker environment, AC net, and trainer.
 
         Args:
@@ -83,7 +76,7 @@ class AC_rnn_ra_Worker(AC_Agent_Base):
         
         """
         AC_Agent_Base.__init__(self, game, name, s_shape, a_size, trainer, model_path,
-                               global_episodes, hlvl)
+                               global_episodes, learning_params, hlvl)
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
         self.local_AC = AC_rnn_ra_Network(s_shape,a_size,self.name,trainer,hlvl)
@@ -163,8 +156,10 @@ class AC_rnn_ra_Worker(AC_Agent_Base):
         self.start_rnn_state = self.rnn_state
                 
         
-    def work(self,max_episode_length,update_ival,gamma,lam,sess,
-             coord,saver):
+    def work(self,sess,coord,saver):
+        gamma = self.gamma
+        lam = self.lam
+
         t0 = time.time()
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
@@ -177,6 +172,7 @@ class AC_rnn_ra_Worker(AC_Agent_Base):
                 episode_frames = []
                 episode_reward = 0
                 episode_step_count = 0
+                action_mag = []
                 d = False
                 r = 0
 
@@ -193,15 +189,16 @@ class AC_rnn_ra_Worker(AC_Agent_Base):
                     a,v = self.sample_av(s, sess, r)
                     s1,r,d = self.env.step(a)
                     
-#                     if episode_count == 50:
+#                     if episode_count == 50:o
 #                         coord.request_stop()
 
                     s1 = process_frame(s1)
-                    if episode_step_count == max_episode_length-1:
+                    if episode_step_count == self.max_ep-1:
                         d = True
 
                     data = ['r = ' + str(r),
-                            'd = ' + str(d)]
+                            'd = ' + str(d),
+                            'a = ' + str(a)]
                     episode_frames.append((s1, data))
                         
                     episode_buffer.append([s,a,r,s1,d,v[0,0]])
@@ -215,8 +212,8 @@ class AC_rnn_ra_Worker(AC_Agent_Base):
                     # If the episode hasn't ended, but the experience
                     # buffer is full, then we make an update step using
                     # that experience rollout.
-                    if len(episode_buffer) == update_ival and d != True and \
-                       episode_step_count != max_episode_length - 1:
+                    if len(episode_buffer) == self.update_ival and d != True and \
+                       episode_step_count != self.max_ep - 1:
                         # Since we don't know what the true final return
                         # is, we "bootstrap" from our current value
                         # estimation.
@@ -243,7 +240,7 @@ class AC_rnn_ra_Worker(AC_Agent_Base):
                                                      sess,gamma,lam,0.0)
                     
                 # Periodically save model parameters, and summary statistics.
-                if episode_count % 1000 == 0 and self.is_writer:
+                if episode_count % 100 == 0 and self.is_writer:
                     saver.save(sess,self.model_path+'/model-'
                                +str(episode_count)+'.cptk')
                     s_dt = str(timedelta(seconds=time.time()-t0))

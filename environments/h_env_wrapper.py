@@ -30,8 +30,16 @@ class H_Env_Wrapper():
                  subgoal,
                  global_episodes, # args to Worker.init(...)
                  # args to Worker.work(...)
-                 max_ep_len,gamma,lam,
-                 model_path):
+                 lp, model_path):
+        """Created an intermediate level environment in the hierarchy
+        
+        Args:
+            agent:  the lower level agent (currently must be ac agent)
+            subgoal: the subgoal containing the intrinsic rewards
+            global_episodes: tensor to store global ep count
+            lp: learning parameters
+            model_path: save folder
+        """
 
         self.env = agent.env
         self.subgoal = subgoal
@@ -41,10 +49,12 @@ class H_Env_Wrapper():
         self.global_episodes = global_episodes
         # self.increment = self.global_episodes.assign_add(1)
 
-        self.max_ep_len = max_ep_len
 
-        self.gamma = gamma
-        self.lam = lam
+        self.lam         = lp['lambda']
+        self.max_ep_len  = lp['max_episode_length']
+        self.update_ival = lp['update_ival']
+        self.gamma       = lp['gamma']
+
         self.sess = None
         self.im = None
 

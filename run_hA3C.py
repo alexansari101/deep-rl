@@ -53,17 +53,14 @@ def main():  # noqa: D103
     if not args.tmp:
         dir_utils.write_readme(args.output)
 
-    update_ival = np.inf      # train after this many steps if < max_episode_length
-    gamma = .99               # discount rate for reward discounting
-    lam = 1                   # .97; discount rate for advantage estimation
-    m_max_episode_length = 50
     
     # num_workers = multiprocessing.cpu_count() # number of available CPU threads
     num_workers = 8 #Hardcode num-workers for consistency across machines
     
     
-    workers = H_Workers.get_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
-    # workers = H_Workers.get_1lvl_ac_rnn(env_factory.get(args.env), num_workers, args.output)
+    # workers = H_Workers.get_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
+    # workers = H_Workers.get_dummy_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
+    workers = H_Workers.get_1lvl_ac_rnn(env_factory.get(args.env), num_workers, args.output)
     
             
     saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)
@@ -82,8 +79,7 @@ def main():  # noqa: D103
             worker_threads = []
             coord = tf.train.Coordinator()        
             for worker in workers:
-                worker_work = lambda: worker.work(m_max_episode_length,update_ival,gamma,
-                                                  lam,sess,coord,saver)
+                worker_work = lambda: worker.work(sess,coord,saver)
                 t = threading.Thread(target=(worker_work))
                 t.start()
                 worker_threads.append(t)
