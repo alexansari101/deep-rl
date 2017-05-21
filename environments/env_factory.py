@@ -2,7 +2,7 @@ from . import waypoint_planner
 from . import hregion_search
 from . import center_goal
 from . import random_goal
-
+from . import center_grad
 
 def get(env_name):
     if env_name == "Waypoints":
@@ -13,6 +13,8 @@ def get(env_name):
         return center_goal.gameEnv
     if env_name == "RandRegion":
         return random_goal.gameEnv
+    if env_name == "CenterGrad":
+        return center_grad.gameEnv
     
     raise ValueError('Unknown environment name: ' + str(env_name))
     

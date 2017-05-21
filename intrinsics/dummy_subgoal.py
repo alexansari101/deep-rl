@@ -6,7 +6,8 @@ from util import process_frame
 
 class DummyGoal():
     """Defines subgoals and intrinsic rewards for hierarchy
-    This is a dummy subgoal which does not alter the environment"""
+    This is a dummy subgoal which does not alter the environment
+    The sub agent recieves the reward directly from the environment"""
 
     def __init__(self, raw_ob_shape, grid_size):
 
