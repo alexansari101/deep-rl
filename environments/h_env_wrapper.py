@@ -156,7 +156,7 @@ class H_Env_Wrapper():
             m_r += m_r_step
             # if(self.flags['verbose']):
             #     print('i_r: ' + str(i_r))
-            s = s1
+
 
             d = m_d or i_d or episode_step_count == self.max_ep_len-1
 
@@ -172,6 +172,7 @@ class H_Env_Wrapper():
             episode_buffer.append([s,a,i_r,s1,d,v[0,0]])
             episode_values.append(v[0,0])
             episode_reward += i_r
+            s = s1
             episode_step_count += 1
             self.total_step_count += 1
                                         
