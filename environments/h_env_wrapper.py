@@ -68,15 +68,14 @@ class H_Env_Wrapper():
         # copy global paramters to local network
         self.agent = agent
         # todo: 'global' -> ?
-        self.update_local_ops = update_target_graph('global_1',agent.name)
+
 
         self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
                                                     + str(agent.name))
 
         self.flags = {'render':False,
                       'train':True,
-                      'verbose':False,
-                      'debug':agent.is_writer}
+                      'verbose':False}
         
         self.frames = [] #frames for saving movies
         self.last_obs = []
@@ -120,7 +119,7 @@ class H_Env_Wrapper():
             self.summary_writer.add_graph(self.sess.graph)
         
             
-        self.sess.run(self.update_local_ops)
+        self.sess.run(self.agent.update_local_ops)
         episode_buffer = []
         episode_values = []
         episode_frames = []
