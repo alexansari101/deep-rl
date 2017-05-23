@@ -118,7 +118,7 @@ def get_1lvl_ac_rnn(env_gen, num_workers, out_folder):
         lp = {'lambda'            : 1,
               'gamma'             : .99,
               'update_ival'       : np.inf,
-              'max_episode_length': 20}
+              'max_episode_length': 400}
 
         trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
         global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',
@@ -136,6 +136,34 @@ def get_1lvl_ac_rnn(env_gen, num_workers, out_folder):
             workers.append(AC_rnn_ra_Worker(env, 'agent_' + str(i),
                                             s_shape, a_size, trainer,
                                             out_folder, global_episodes, lp))
+
+        return workers
+
+    
+def get_1lvl_ac(env_gen, num_workers, out_folder):
+    with tf.device("/cpu:0"):
+        lp = {'lambda'            : 1,
+              'gamma'             : .99,
+              'update_ival'       : np.inf,
+              'max_episode_length': 10}
+
+        trainer = tf.train.AdamOptimizer(learning_rate=0.00025) # beta1=0.99
+        global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',
+                                          trainable=False)
+        env = env_gen()
+        s_shape = env.observation_space.shape
+        a_size = env.action_space.n
+
+            
+        master_network = AC_Network(s_shape,a_size,'global_0',None)
+
+        workers = []
+        
+        for i in range(num_workers):
+            env = env_gen()
+            workers.append(AC_Worker(env, 'agent_' + str(i),
+                                     s_shape, a_size, trainer,
+                                     out_folder, global_episodes, lp))
 
         return workers
 
