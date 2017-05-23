@@ -29,33 +29,18 @@ def get_2lvl_HA3C(env_gen, num_workers, out_folder,
         
         m_trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
         trainer = tf.train.AdamOptimizer(learning_rate=0.0001) # beta1=0.99
-        global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',
-                                          trainable=False)
-        env = env_gen()
-        m_s_shape = env.observation_space.shape
-        subgoal = GridGoal(m_s_shape, grid_size)
-        s_shape = subgoal.observation_space.shape
-        a_size = env.action_space.n
-        m_a_size = subgoal.action_space.n
-            
-        m_master_network = AC_Network(m_s_shape,m_a_size,'global_0',None) # meta network
-        master_network = AC_rnn_ra_Network(s_shape,a_size,'global_1',None)
 
         workers = []
         
         for i in range(num_workers):
-            env = env_gen()
-
-            subgoal = GridGoal(m_s_shape, grid_size)
-            agent_1 = AC_rnn_ra_Worker(env, 'agent_1_'+str(i), s_shape, a_size,
-                                       trainer, out_folder, global_episodes, lp,
+            env_1 = GridGoal(env_gen(), grid_size)
+            agent_1 = AC_rnn_ra_Worker(env_1, 'agent_1_'+str(i),
+                                       trainer, out_folder, lp,
                                        hlvl=1)
-            env_1 = H_Env_Wrapper(agent_1, subgoal, global_episodes,
-                                  lp, model_path=out_folder)
-            # env_1.flags['verbose']=True
+            env_0 = H_Env_Wrapper(agent_1, lp, model_path=out_folder)
             
-            agent_0 = AC_Worker(env_1, 'agent_0_'+str(i), m_s_shape, m_a_size, m_trainer,
-                                out_folder, global_episodes, m_lp)
+            agent_0 = AC_Worker(env_0, 'agent_0_'+str(i), m_trainer,
+                                out_folder, m_lp)
 
             workers.append(agent_0)
 
@@ -79,33 +64,16 @@ def get_dummy_2lvl_HA3C(env_gen, num_workers, out_folder):
 
         m_trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
         trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
-        global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',
-                                          trainable=False)
-        env = env_gen()
-        m_s_shape = env.observation_space.shape
-        subgoal = DummyGoal(m_s_shape, grid_size)
-        s_shape = subgoal.observation_space.shape
-        a_size = env.action_space.n
-        m_a_size = subgoal.action_space.n
-            
-        m_master_network = AC_Network(m_s_shape,m_a_size,'global_0',None) # meta network
-        master_network = AC_rnn_ra_Network(s_shape,a_size,'global_1',None)
 
         workers = []
         
         for i in range(num_workers):
-            env = env_gen()
-
-            subgoal = DummyGoal(m_s_shape, grid_size)
-            agent_1 = AC_rnn_ra_Worker(env, 'agent_1_'+str(i), s_shape, a_size,
-                                       trainer, out_folder, global_episodes, lp,
-                                       hlvl=1)
-            env_1 = H_Env_Wrapper(agent_1, subgoal, global_episodes,
-                                  lp, model_path=out_folder)
-            # env_1.flags['verbose']=True
-            
-            agent_0 = AC_Worker(env_1, 'agent_0_'+str(i), m_s_shape, m_a_size, m_trainer,
-                                out_folder, global_episodes, m_lp)
+            env_1 = DummyGoal(env_gen())
+            agent_1 = AC_rnn_ra_Worker(env_1, 'agent_1_'+str(i), trainer,
+                                       out_folder, lp, hlvl=1)
+            env_0= H_Env_Wrapper(agent_1, lp, model_path=out_folder)
+            agent_0 = AC_Worker(env_0, 'agent_0_'+str(i), m_trainer,
+                                out_folder, m_lp)
 
             workers.append(agent_0)
 
@@ -122,22 +90,11 @@ def get_1lvl_ac_rnn(env_gen, num_workers, out_folder):
               'max_episode_length': 400}
 
         trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
-        global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',
-                                          trainable=False)
-        env = env_gen()
-        s_shape = env.observation_space.shape
-        a_size = env.action_space.n
-            
-        master_network = AC_rnn_ra_Network(s_shape,a_size,'global_0',None)
 
         workers = []
-        
         for i in range(num_workers):
-            env = env_gen()
-            workers.append(AC_rnn_ra_Worker(env, 'agent_' + str(i),
-                                            s_shape, a_size, trainer,
-                                            out_folder, global_episodes, lp))
-
+            workers.append(AC_rnn_ra_Worker(env_gen(), 'agent_' + str(i),
+                                            trainer, out_folder, lp))
         return workers
 
     
@@ -152,22 +109,11 @@ def get_1lvl_ac(env_gen, num_workers, out_folder):
               'max_episode_length': 10}
 
         trainer = tf.train.AdamOptimizer(learning_rate=0.00025) # beta1=0.99
-        global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',
-                                          trainable=False)
-        env = env_gen()
-        s_shape = env.observation_space.shape
-        a_size = env.action_space.n
-
-            
-        master_network = AC_Network(s_shape,a_size,'global_0',None)
 
         workers = []
-        
         for i in range(num_workers):
-            env = env_gen()
-            workers.append(AC_Worker(env, 'agent_' + str(i),
-                                     s_shape, a_size, trainer,
-                                     out_folder, global_episodes, lp))
+            workers.append(AC_Worker(env_gen(), 'agent_' + str(i),
+                                     trainer, out_folder, lp))
 
         return workers
 
