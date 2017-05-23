@@ -85,7 +85,7 @@ class AC_Agent_Base():
         self.name = name
         self.s_shape = s_shape
         self.a_size = a_size
-        self.name = name        
+
         self.model_path = model_path
         self.trainer = trainer
         self.global_episodes = global_episodes
@@ -108,8 +108,8 @@ class AC_Agent_Base():
         self.hlvl = hlvl
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
-        self.update_local_ops = update_target_graph('global_'+str(hlvl),self.name)  
-
+        self.update_local_ops = None #Must be defined after local_AC, so the variables exist in tf
+        
         self.env = game
         self.prev_a = None
 

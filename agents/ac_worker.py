@@ -61,7 +61,8 @@ class AC_Worker(AC_Agent_Base):
 
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
-        self.local_AC = AC_Network(s_shape,a_size,self.name,trainer)
+        self.local_AC = AC_Network(s_shape,a_size,self.name,trainer, hlvl)
+        self.update_local_ops = update_target_graph('global_'+str(hlvl),self.name)  
 
 
     def train(self,rollout,sess,gamma,lam,bootstrap_value):
