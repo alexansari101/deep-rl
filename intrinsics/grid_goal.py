@@ -3,20 +3,21 @@ from operator import mul
 import numpy as np
 import matplotlib.pyplot as plt
 from util import process_frame
+from .augmented_env_base import Augmented_Env_Base
 
-class GridGoal():
+class GridGoal(Augmented_Env_Base):
     """Defines subgoals and intrinsic rewards for hierarchy"""
 
-    def __init__(self, raw_ob_shape, grid_size):
+    def __init__(self, env, grid_size):
+        Augmented_Env_Base.__init__(self, env)
 
         self.grid_size = grid_size
 
         #To mimic the openAI gym enviornment
-        self.action_space = lambda: None
-        self.action_space.n = reduce(mul,grid_size) #product of grid_size
+        self.m_action_space.n = reduce(mul,grid_size) #product of grid_size
 
-        self.observation_space = lambda: None
-        sh = list(raw_ob_shape)
+
+        sh = list(env.observation_space.shape)
         sh[2]+=1
         self.observation_space.shape = tuple(sh)
 

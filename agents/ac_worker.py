@@ -41,26 +41,27 @@ class AC_Worker(AC_Agent_Base):
     
     """
     
-    def __init__(self,game,name,s_shape,a_size,trainer,model_path,
-                 global_episodes, learning_params, hlvl=0):
+    def __init__(self,env,name,trainer,model_path,
+                 learning_params, hlvl=0):
         """Initialize the worker environment, AC net, and trainer.
 
         Args:
-            game: An environment object
+            env: An environment object
             name (str): name of the worker agent.
             s_shape (list): shape of received environment states (observations)
             a_size (int): the dimension of the continuous action vector.
             trainer: a tensorflow optimizer from the tf.train module.
             model_path: folder under which to save the model
-            global_episodes: a tensorflow tensor to store the global
-                episode count
-        
+            learning_params: dictionary of parameters related to training
+            hlvl: hierarchy level (0 for highest lvl agent)
         """
-        AC_Agent_Base.__init__(self, game, name, s_shape, a_size, trainer, model_path,
-                               global_episodes, learning_params, hlvl)
+        AC_Agent_Base.__init__(self, env, name, trainer, model_path,
+                               learning_params, hlvl)
 
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
+        s_shape = env.observation_space.shape
+        a_size = env.action_space.n
         self.local_AC = AC_Network(s_shape,a_size,self.name,trainer, hlvl)
         self.update_local_ops = update_target_graph('global_'+str(hlvl),self.name)  
 

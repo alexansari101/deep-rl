@@ -66,30 +66,23 @@ class AC_Agent_Base():
     
     """
     
-    def __init__(self,game,name,s_shape,a_size,trainer,model_path,
-                 global_episodes, lp, hlvl):
+    def __init__(self,env,name,trainer,model_path,
+                 lp, hlvl):
         """Initialize the worker environment, AC net, and trainer.
 
         Args:
-            game: An environment object
+            env: An environment object
             name (str): name of the worker agent.
-            s_shape (list): shape of received environment states (observations)
-            a_size (int): the dimension of the continuous action vector.
             trainer: a tensorflow optimizer from the tf.train module.
             model_path: folder under which to save the model
-            global_episodes: a tensorflow tensor to store the global
-                episode count
-            lp: learning params
+            lp: dictionary of parameters related to training
             hlvl: hierarchy level (0 for highest lvl agent)
         """
         self.name = name
-        self.s_shape = s_shape
-        self.a_size = a_size
 
         self.model_path = model_path
         self.trainer = trainer
-        self.global_episodes = global_episodes
-        self.increment = self.global_episodes.assign_add(1)
+
         self.episode_rewards = []
         self.episode_lengths = []
         self.episode_mean_values = []
@@ -103,6 +96,14 @@ class AC_Agent_Base():
         self.max_ep      = lp['max_episode_length']
         self.update_ival = lp['update_ival']
         self.gamma       = lp['gamma']
+
+        # Share the "global_episodes" variable between networks
+        g = [v for v in tf.global_variables() if v.name == 'global_episodes']
+        if not g:
+            g = [tf.Variable(0,dtype=tf.int32,name='global_episodes',
+                            trainable=False)]
+        self.global_episodes = g[0]
+        self.increment = self.global_episodes.assign_add(1)
         
 
         self.hlvl = hlvl
@@ -110,7 +111,7 @@ class AC_Agent_Base():
         # copy global paramters to local network
         self.update_local_ops = None #Must be defined after local_AC, so the variables exist in tf
         
-        self.env = game
+        self.env = env
         self.prev_a = None
 
         self.local_AC = None #Must be defined in inherited class

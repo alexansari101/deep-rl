@@ -26,11 +26,7 @@ class H_Env_Wrapper():
 
     """
 
-    def __init__(self,agent,
-                 subgoal,
-                 global_episodes, # args to Worker.init(...)
-                 # args to Worker.work(...)
-                 lp, model_path):
+    def __init__(self,agent, lp, model_path):
         """Created an intermediate level environment in the hierarchy
         
         Args:
@@ -42,11 +38,14 @@ class H_Env_Wrapper():
         """
 
         self.env = agent.env
-        self.subgoal = subgoal
+        self.subgoal = agent.env
         # ARA - todo: generalize this
 
+        self.observation_space = self.env.m_observation_space
+        self.action_space = self.env.m_action_space
+
         self.model_path = model_path
-        self.global_episodes = global_episodes
+        self.global_episodes = agent.global_episodes
         # self.increment = self.global_episodes.assign_add(1)
 
 
@@ -92,6 +91,7 @@ class H_Env_Wrapper():
         return self.frames
     
     def render(self):
+        """Should render the env, currently not working"""
         return self.env.render()
 
     def get_last_obs(self):

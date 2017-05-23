@@ -3,22 +3,19 @@ from operator import mul
 import numpy as np
 import matplotlib.pyplot as plt
 from util import process_frame
+from .augmented_env_base import Augmented_Env_Base
 
-class DummyGoal():
+class DummyGoal(Augmented_Env_Base):
     """Defines subgoals and intrinsic rewards for hierarchy
     This is a dummy subgoal which does not alter the environment
     The sub agent recieves the reward directly from the environment"""
 
-    def __init__(self, raw_ob_shape, grid_size):
-
-        self.grid_size = grid_size
+    def __init__(self, env):
+        Augmented_Env_Base.__init__(self, env)
 
         #To mimic the openAI gym enviornment
-        self.action_space = lambda: None
-        self.action_space.n = 16
-
-        self.observation_space = lambda: None
-        self.observation_space.shape = raw_ob_shape
+        self.m_action_space.n = 16 #product of grid_size
+        self.observation_space = env.observation_space
 
 
     def set_meta_action(self, m_a):
