@@ -14,10 +14,9 @@ from intrinsics.dummy_subgoal import DummyGoal
 
 def get_2lvl_HA3C(env_gen, num_workers, out_folder,
                   grid_size = (4,4)):
-
-    """Returns a hierarchical agent
-    lvl 1 is AC
-    lvl 2 is AC_RNN_RA"""
+    """Returns a group hierarchical agent workers
+    lvl 0 is AC
+    lvl 1 is AC_RNN_RA"""
     with tf.device("/cpu:0"):
         m_lp = {'lambda'            : 1,
                 'gamma'             : .99,
@@ -29,7 +28,7 @@ def get_2lvl_HA3C(env_gen, num_workers, out_folder,
               'max_episode_length': 20}
         
         m_trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
-        trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
+        trainer = tf.train.AdamOptimizer(learning_rate=0.0001) # beta1=0.99
         global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',
                                           trainable=False)
         env = env_gen()
@@ -63,12 +62,11 @@ def get_2lvl_HA3C(env_gen, num_workers, out_folder,
         return workers
 
     
-def get_dummy_2lvl_HA3C(env_gen, num_workers, out_folder,
-                        grid_size = (4,4)):
-
-    """Returns a hierarchical agent
-    lvl 1 is AC
-    lvl 2 is AC_RNN_RA"""
+def get_dummy_2lvl_HA3C(env_gen, num_workers, out_folder):
+    """Returns a group of hierarchical agent workers
+    lvl 0 is AC
+    lvl 1 is AC_RNN_RA
+    Dummy subgoal is used, so the AC does nothing"""
     with tf.device("/cpu:0"):
         m_lp = {'lambda'            : 1,
                 'gamma'             : .99,
@@ -114,6 +112,9 @@ def get_dummy_2lvl_HA3C(env_gen, num_workers, out_folder,
         return workers
 
 def get_1lvl_ac_rnn(env_gen, num_workers, out_folder):
+    """Returns a group of hierarchical agent workers
+    only 1 lvl in the hierarchy, a single ac"""
+
     with tf.device("/cpu:0"):
         lp = {'lambda'            : 1,
               'gamma'             : .99,
@@ -141,6 +142,9 @@ def get_1lvl_ac_rnn(env_gen, num_workers, out_folder):
 
     
 def get_1lvl_ac(env_gen, num_workers, out_folder):
+    """Returns a group of hierarchical agent workers
+    only 1 lvl in the hierarchy, a single ac"""
+    
     with tf.device("/cpu:0"):
         lp = {'lambda'            : 1,
               'gamma'             : .99,
