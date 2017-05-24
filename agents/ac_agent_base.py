@@ -171,6 +171,10 @@ class AC_Agent_Base():
             a, v = self.sample_av(s, sess, r)
                 
             s1,r,d = self.env.step(a)
+            episode_r += r
+            s = process_frame(s1)
+            step += 1
+
 
             if is_meta:
                 frames += self.env.get_frames()
@@ -179,12 +183,10 @@ class AC_Agent_Base():
                         'd = ' + str(d),
                         'v = ' + str(v),
                         'a = ' + str(a),
-                        'step = ' + str(step)]
+                        'step = ' + str(step),
+                        'cum_r = ' + str(episode_r)]
                 frames.append((s1, data))
                 
-            episode_r += r
-            s = process_frame(s1)
-            step += 1
 
         print('episode reward: ' + str(episode_r))
         
