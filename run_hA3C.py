@@ -57,13 +57,13 @@ def main():  # noqa: D103
     # num_workers = multiprocessing.cpu_count() # number of available CPU threads
     num_workers = 8 #Hardcode num-workers for consistency across machines
     
-    
+    # workers = H_Workers.get_2lvl_rnn_ra_x2(env_factory.get(args.env), num_workers, args.output)
     workers = H_Workers.get_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
     # workers = H_Workers.get_dummy_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
     # workers = H_Workers.get_1lvl_ac_rnn(env_factory.get(args.env), num_workers, args.output)
     # workers = H_Workers.get_1lvl_ac(env_factory.get(args.env), num_workers, args.output)
             
-    saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)
+    saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=5)
     with tf.Session() as sess:
 
         if args.load:
