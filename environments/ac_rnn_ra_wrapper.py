@@ -170,7 +170,7 @@ class AC_rnn_ra_Wrapper():
         return mask
 
     # ARA - todo: add to critic and generalize
-    def intrinsic_reward(self,s,a,sp,f,g):
+    def intrinsic_reward(self,s,a,sp,f,m_d,g):
         """Intrinsic reward from internal critic in hierarchical RL.
 
         Arguments:
@@ -183,28 +183,46 @@ class AC_rnn_ra_Wrapper():
         intrinsic_reward: reward based on agreement with the meta goal
         done: Terminal wrapped_env?
         """
-        done = False
-        r = -0.05
+        # done = False
+        # r = -0.05
         # r = 0.0  
 
+        
+        # if m_d:
+        #     done = True
+        #     r = f
+
+        # #small reward for moving slowly
+        # if np.sum(s[:,:,2].astype(bool)*sp[:,:,2]) > 0:
+        #     r += 0.05
+
+        # #large reward if the agent's past and present
+        # #  state is inside the masked region
+        # if np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
+        #      and np.sum(g.astype(bool)*sp[:,:,2]) > 3.5:
+        #     r += f
+        #     done = True
+
+        # i_r = np.clip(r,-1,1)
+
+        # return i_r, done
+
+        #Same Reward as Alex Used
+        done = False
+        r = -0.05
+        # if the agent's past and present state is inside the masked region
         if f < 0:
             done = True
             r = -10
-
-        #small reward for moving slowly
-        if np.sum(s[:,:,2].astype(bool)*sp[:,:,2]) > 0:
-            r += 0.05
-
-        #large reward if the agent's past and present
-        #  state is inside the masked region
-        if np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
+        elif np.sum(g.astype(bool)*s[:,:,2]) > 3.5 \
              and np.sum(g.astype(bool)*sp[:,:,2]) > 3.5:
-            r += 1
-            done = True
-
-        i_r = np.clip(r,-1,1)
-
-        return i_r, done
+            f_diff = np.sum(sp[:,:,2]-s[:,:,2])/4
+            if(f_diff > 0.0001):
+                print(f_diff)
+            r += 0.35*np.exp(-f_diff)
+            if r > 0:
+                done = True
+        return r, done    
 
     def get_meta_state(self,s,g):
         """compute the 4 channel meta-state from meta-action (goal / option)
@@ -289,7 +307,7 @@ class AC_rnn_ra_Wrapper():
                 self.render_meta_state(m_a)
 
             # ARA - todo: make into internal critic or provide a env. wrapper
-            i_r,i_d = self.intrinsic_reward(s,a,s1,f,g)
+            i_r,i_d = self.intrinsic_reward(s,a,s1,f,m_d,g)
 
             d = m_d or i_d or episode_step_count == self.max_episode_length-1
 
@@ -370,4 +388,5 @@ class AC_rnn_ra_Wrapper():
         # ARA - todo: check if max meta-episodes is reached in meta-agent
         #       only send a done (m_d) signal if inner env. needs resetting.
         self.frames = episode_frames
+        m_r = self.meta_reward(s0, g, s[:,:,:-1])
         return s[:,:,:-1],m_r,m_d 

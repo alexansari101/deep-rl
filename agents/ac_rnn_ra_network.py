@@ -42,6 +42,13 @@ class AC_rnn_ra_Network():
             hlvl (int): the hierarchy level (starting at 0) of the agent
         
         """
+        global_name = 'global_'+str(hlvl)
+
+        #Create the master network, if it does not already exist
+        if scope != global_name and \
+           not tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, global_name):
+            AC_rnn_ra_Network(s_shape,a_size, global_name, None, hlvl)
+
         with tf.variable_scope(scope):
             # Input and visual encoding layers
             self.inputs = tf.placeholder(shape=[None]+list(s_shape),
@@ -115,7 +122,7 @@ class AC_rnn_ra_Network():
                     tf.square(self.target_v - tf.reshape(self.value,[-1])))
                 self.entropy = tf.reduce_sum(self.policy_dist.entropy())
                 self.policy_loss = -tf.reduce_sum(
-                    self.policy_dist.log_pdf(self.actions)*self.advantages)
+                    self.policy_dist.log_prob(self.actions)*self.advantages)
                 self.loss = self.value_loss+self.policy_loss-self.entropy*5e-5
 
                 # Get gradients from local network using local losses
@@ -128,7 +135,7 @@ class AC_rnn_ra_Network():
                 
                 # Apply local gradients to global network
                 global_vars = tf.get_collection(
-                    tf.GraphKeys.TRAINABLE_VARIABLES, 'global_'+str(hlvl))
+                    tf.GraphKeys.TRAINABLE_VARIABLES, global_name)
                 self.apply_grads = trainer.apply_gradients(zip(grads,
                                                                global_vars))
 

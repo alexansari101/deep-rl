@@ -45,9 +45,14 @@ import numpy as np
 import tensorflow as tf
 
 from util import update_target_graph, process_frame, discount
-from agents.ac_rnn_ra_network import AC_rnn_ra_Network
 
-class AC_rnn_ra_Worker():
+import time
+from datetime import timedelta
+
+from agents.ac_rnn_ra_network import AC_rnn_ra_Network
+from agents.ac_agent_base import AC_Agent_Base
+
+class AC_rnn_ra_Worker(AC_Agent_Base):
     """Advantage actor-critic worker with rnn support and meta-learning.
 
     This implementation includes inputs for an rnn, and additional
@@ -55,49 +60,39 @@ class AC_rnn_ra_Worker():
     
     """
     
-    def __init__(self,game,name,s_shape,a_size,trainer,model_path,
-                 global_episodes):
+    def __init__(self,env,name,trainer,model_path,
+                 learning_params, hlvl=0):
         """Initialize the worker environment, AC net, and trainer.
 
         Args:
-            game: An environment object
+            env: An environment object
             name (str): name of the worker agent.
-            s_shape (list): shape of received environment states (observations)
-            a_size (int): the dimension of the continuous action vector.
             trainer: a tensorflow optimizer from the tf.train module.
             model_path: folder under which to save the model
-            global_episodes: a tensorflow tensor to store the global
-                episode count
-        
+            learning_params: dictionary of parameters related to training
+            hlvl: hierarchy level (0 for highest lvl agent)
         """
-        self.name = "worker_" + str(name)
-        self.s_shape = s_shape
-        self.a_size = a_size
-        self.number = name        
-        self.model_path = model_path
-        self.trainer = trainer
-        self.global_episodes = global_episodes
-        self.increment = self.global_episodes.assign_add(1)
-        self.episode_rewards = []
-        self.episode_lengths = []
-        self.episode_mean_values = []
-        self.summary_writer = tf.summary.FileWriter(model_path + "/train_"
-                                                    + str(self.number))
-
+        AC_Agent_Base.__init__(self, env, name, trainer, model_path,
+                               learning_params, hlvl)
         # Create the local copy of the network and the tensorflow op to
         # copy global paramters to local network
-        self.local_AC = AC_rnn_ra_Network(s_shape,a_size,self.name,trainer)
-        self.update_local_ops = update_target_graph('global_0',self.name)  
+        s_shape = env.observation_space.shape
+        a_size = env.action_space.n
+        self.local_AC = AC_rnn_ra_Network(s_shape,a_size,self.name,trainer,hlvl)
+        self.update_local_ops = update_target_graph('global_'+str(hlvl),self.name)  
 
-        self.env = game
+        self.rnn_state = None
+        self.start_rnn_state = None
 
-    def train(self,global_AC,rollout,sess,gamma,lam,bootstrap_value):
+
+
+    def train(self,rollout,sess,gamma,lam,bootstrap_value):
         rollout = np.array(rollout)
         observations = rollout[:,0]
         actions = rollout[:,1]
         rewards = rollout[:,2]
         prev_rewards = [0] + rewards[:-1].tolist()
-        prev_actions = [np.array([0]*self.a_size)] + actions[:-1].tolist()
+        prev_actions = [np.array([0]*self.env.action_space.n)] + actions[:-1].tolist()
         next_observations = rollout[:,3] # ARA - currently unused
         values = rollout[:,5]
         
@@ -113,7 +108,7 @@ class AC_rnn_ra_Worker():
 
         # Update the global network using gradients from loss
         # Generate network statistics to periodically save
-        rnn_state = self.local_AC.state_init
+        rnn_state = self.start_rnn_state
         feed_dict = {self.local_AC.target_v:discounted_rewards,
                      # ARA - using np.stack to support Ndarray states
                      self.local_AC.inputs:np.stack(observations),
@@ -132,12 +127,42 @@ class AC_rnn_ra_Worker():
                                           self.local_AC.apply_grads],
                                          feed_dict=feed_dict)
         return v_l/len(rollout),p_l/len(rollout),e_l/len(rollout),g_n,v_n
+
+    def sample_av(self, s, sess, prev_r):
+        """Returns an action sampled from the agent's policy, and value"""
+        # feed_dict={self.local_AC.inputs:[s]}
+        feed_dict={self.local_AC.inputs:[s],
+                   self.local_AC.prev_actions:[self.prev_a],
+                   self.local_AC.prev_rewards:[[prev_r]],
+                   self.local_AC.is_training_ph:False,
+                   self.local_AC.state_in[0]:self.rnn_state[0],
+                   self.local_AC.state_in[1]:self.rnn_state[1]}
+
+
+        a, v, rnn_state = sess.run([self.local_AC.sample_a,
+                                    self.local_AC.value,
+                                    self.local_AC.state_out],
+                                   feed_dict=feed_dict)
+        self.rnn_state = rnn_state
+        self.prev_a = a
+        return a, v
+
+    def reset_agent(self):
+        self.rnn_state = self.local_AC.state_init
+        self.prev_a = np.array([0]*self.env.action_space.n)
+
+    def start_trial(self):
+        self.start_rnn_state = self.rnn_state
+                
         
-    def work(self,max_episode_length,update_ival,gamma,lam,global_AC,sess,
-             coord,saver):
+    def work(self,sess,coord,saver):
+        gamma = self.gamma
+        lam = self.lam
+
+        t0 = time.time()
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
-        print("Starting worker " + str(self.number))
+        print("Starting worker " + str(self.name))
         with sess.as_default(), sess.graph.as_default():                 
             while not coord.should_stop():
                 sess.run(self.update_local_ops)
@@ -146,35 +171,34 @@ class AC_rnn_ra_Worker():
                 episode_frames = []
                 episode_reward = 0
                 episode_step_count = 0
+                action_mag = []
                 d = False
                 r = 0
-                a = np.array([0]*self.a_size)
+
                 s = self.env.reset()
-                episode_frames.append(s)
+                self.reset_agent()
+                episode_frames.append((s,['']))
                 s = process_frame(s)
-                rnn_state = self.local_AC.state_init
+
+                self.start_trial()
 
                 while d == False:
                     # Take an action using probabilities from policy
                     # network output.
-                    feed_dict={self.local_AC.inputs:[s],
-                               self.local_AC.prev_actions:[a],
-                               self.local_AC.prev_rewards:[[r]],
-                               self.local_AC.is_training_ph:False,
-                               self.local_AC.state_in[0]:rnn_state[0],
-                               self.local_AC.state_in[1]:rnn_state[1]}
-                    a,v,rnn_state = sess.run([self.local_AC.sample_a,
-                                              self.local_AC.value,
-                                              self.local_AC.state_out], 
-                                             feed_dict=feed_dict)
-                    
+                    a,v = self.sample_av(s, sess, r)
                     s1,r,d = self.env.step(a)
-#                     if episode_count == 50:
+                    
+#                     if episode_count == 50:o
 #                         coord.request_stop()
-                    episode_frames.append(s1)
+
                     s1 = process_frame(s1)
-                    if episode_step_count == max_episode_length-1:
+                    if episode_step_count == self.max_ep-1:
                         d = True
+
+                    data = ['r = ' + str(r),
+                            'd = ' + str(d),
+                            'a = ' + str(a)]
+                    episode_frames.append((s1, data))
                         
                     episode_buffer.append([s,a,r,s1,d,v[0,0]])
                     episode_values.append(v[0,0])
@@ -187,8 +211,8 @@ class AC_rnn_ra_Worker():
                     # If the episode hasn't ended, but the experience
                     # buffer is full, then we make an update step using
                     # that experience rollout.
-                    if len(episode_buffer) == update_ival and d != True and \
-                       episode_step_count != max_episode_length - 1:
+                    if len(episode_buffer) == self.update_ival and d != True and \
+                       episode_step_count != self.max_ep - 1:
                         # Since we don't know what the true final return
                         # is, we "bootstrap" from our current value
                         # estimation.
@@ -197,10 +221,9 @@ class AC_rnn_ra_Worker():
                             self.local_AC.prev_actions:[a],
                             self.local_AC.prev_rewards:[[r]],
                             self.local_AC.is_training_ph:False,
-                            self.local_AC.state_in[0]:rnn_state[0],
-                            self.local_AC.state_in[1]:rnn_state[1]})[0,0]
-                        v_l,p_l,e_l,g_n,v_n = self.train(global_AC,
-                                                         episode_buffer,
+                            self.local_AC.state_in[0]:self.rnn_state[0],
+                            self.local_AC.state_in[1]:self.rnn_state[1]})[0,0] 
+                        v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,
                                                          sess,gamma,lam,v1)
                         episode_buffer = []
                         sess.run(self.update_local_ops)
@@ -212,39 +235,30 @@ class AC_rnn_ra_Worker():
                 # Update the network using the experience buffer at the
                 # end of the episode.
                 if len(episode_buffer) != 0:
-                    v_l,p_l,e_l,g_n,v_n = self.train(global_AC,episode_buffer,
+                    v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,
                                                      sess,gamma,lam,0.0)
                     
                 # Periodically save model parameters, and summary statistics.
-                if episode_count % 5 == 0 and episode_count != 0:
-                    if episode_count % 500 == 0 and self.name == 'worker_0':
-                        saver.save(sess,self.model_path+'/model-'
-                                   +str(episode_count)+'.cptk')
-                        print("Saved Model")
+                if episode_count % 100 == 0 and self.is_writer:
+                    saver.save(sess,self.model_path+'/model-'
+                               +str(episode_count)+'.cptk')
+                    s_dt = str(timedelta(seconds=time.time()-t0))
+                    self.evaluate(sess, episode_count)
+                    print("Saved Model " + str(episode_count) + '\tat time ' + s_dt)
 
-                    mean_reward = np.mean(self.episode_rewards[-5:])
-                    mean_length = np.mean(self.episode_lengths[-5:])
-                    mean_value = np.mean(self.episode_mean_values[-5:])
-                    summary = tf.Summary()
-                    summary.value.add(tag='Perf/Reward',
-                                      simple_value=float(mean_reward))
-                    summary.value.add(tag='Perf/Length',
-                                      simple_value=float(mean_length))
-                    summary.value.add(tag='Perf/Value',
-                                      simple_value=float(mean_value))
-                    summary.value.add(tag='Losses/Value Loss',
-                                      simple_value=float(v_l))
-                    summary.value.add(tag='Losses/Policy Loss',
-                                      simple_value=float(p_l))
-                    summary.value.add(tag='Losses/Entropy',
-                                      simple_value=float(e_l))
-                    summary.value.add(tag='Losses/Grad Norm',
-                                      simple_value=float(g_n))
-                    summary.value.add(tag='Losses/Var Norm',
-                                      simple_value=float(v_n))
-                    self.summary_writer.add_summary(summary, episode_count)
-                    self.summary_writer.flush()
+                if episode_count % 5 == 0 and episode_count != 0:
+
+                    data = {'Perf/Reward'       : episode_reward,
+                            'Perf/Length'       : episode_step_count,
+                            'Perf/Value'        : np.mean(episode_values),
+                            'Losses/Value Loss' : v_l,
+                            'Losses/Policy Loss': p_l,
+                            'Losses/Entropy'    : e_l,
+                            'Losses/Grad Norm'  : g_n,
+                            'Losses/Var Norm'   : v_n}
+                    self.write_summary(data, episode_count)
                     
-                if self.name == 'worker_0':
+                if self.is_writer:
                     sess.run(self.increment)
                 episode_count += 1
+

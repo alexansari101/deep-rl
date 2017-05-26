@@ -17,7 +17,13 @@ class gameEnv():
         self.brdr = 4
         self.width = 2
         self.state = np.zeros([84,84,3])
-        plt.imshow(self.state,interpolation="nearest")
+
+        #To mimic the openAI gym environment
+        self.action_space = lambda: None
+        self.action_space.n = 2
+        self.observation_space = lambda: None
+        self.observation_space.shape = (84,84,3)
+
 
     def reset(self):
         self.state.fill(0)
