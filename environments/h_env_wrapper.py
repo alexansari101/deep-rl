@@ -163,7 +163,8 @@ class H_Env_Wrapper():
                     'm_r  = ' + str(m_r_step),
                     'd    = ' + str(d),
                     'step = ' + str(episode_step_count),
-                    'a    = ' + str(a),
+                    'a    = ' + str(np.round(a,2)),
+                    'm_a  = ' + str(np.round(m_a,2)),
                     'v    = ' + str(v[0,0])]
                     
             episode_frames.append((self.subgoal.visualize(s1), data))
