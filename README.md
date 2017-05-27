@@ -5,11 +5,12 @@ This project includes modules to implement modern deep reinforcement learning ag
 
 ## Installing
 Use python3. I suggest making a virtualenv
-Install tensorflow, matplotlib, scipy, PILLOW, (any others it complains about)
+Install tensorflow, matplotlib, scipy, PILLOW, (any others it complains about), ffmpeg
 
-    virtualenv -p python3 tensorflow
-    source tensorflow/bin/activate
+    virtualenv -p python3 ~/tensorflow
+    source ~/tensorflow/bin/activate
     pip install tensorflow matplotlib scipy PILLOW
+    sudo apt install ffmpeg
 
 Clone this repo, enter directory, run a trial
   
