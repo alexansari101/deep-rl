@@ -1,3 +1,4 @@
+from . import velocity_control_waypoint_planner
 from . import waypoint_planner
 from . import hregion_search
 from . import center_goal
@@ -6,6 +7,8 @@ from . import center_grad
 from . import choose_seven
 
 def get(env_name):
+    if env_name == "VC_Waypoints":
+        return velocity_control_waypoint_planner.gameEnv
     if env_name == "Waypoints":
         return waypoint_planner.gameEnv
     if env_name == "Search":

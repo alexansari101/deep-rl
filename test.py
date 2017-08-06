@@ -1,10 +1,10 @@
 ##Simple function for running random things when debugging
 
-import environments.waypoint_planner as envs
+from environments import env_factory
 import matplotlib.pyplot as plt
 import random
 
-env = envs.WaypointPlanner()
+env = env_factory.get('VC_Waypoints')()
 env.reset()
 env.render()
 
