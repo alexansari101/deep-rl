@@ -57,6 +57,11 @@ def main():  # noqa: D103
 	if not args.tmp and args.train and not args.load:
 		dir_utils.write_readme(args.output)
 
+	if args.test:
+		args.env = args.env + "_exp"
+		
+	print(args.env)
+
 	# num_workers = multiprocessing.cpu_count() # number of available CPU threads
 	num_workers = 8 #Hardcode num-workers for consistency across machines
 	

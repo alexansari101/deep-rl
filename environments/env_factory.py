@@ -1,6 +1,7 @@
 from . import velocity_control_waypoint_planner
 from . import waypoint_planner
 from . import hregion_search
+from . import hregion_search_exp
 from . import center_goal
 from . import random_goal
 from . import center_grad
@@ -13,6 +14,8 @@ def get(env_name):
         return waypoint_planner.gameEnv
     if env_name == "Search":
         return hregion_search.gameEnv
+    if env_name == "Search_exp":#hadi: environment for experiments on foxbot
+        return hregion_search_exp.gameEnv
     if env_name == "Center":
         return center_goal.gameEnv
     if env_name == "RandRegion":
