@@ -10,7 +10,8 @@ class GridGoal(Augmented_Env_Base):
 
     def __init__(self, env, grid_size):
         Augmented_Env_Base.__init__(self, env)
-
+        self.env = env
+        
         self.grid_size = grid_size
 
         #To mimic the openAI gym enviornment

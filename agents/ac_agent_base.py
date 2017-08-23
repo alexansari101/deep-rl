@@ -40,7 +40,7 @@ Todo:
       the agent wrapper environment classes.
 
 """
-
+from IPython import embed
 import numpy as np
 import tensorflow as tf
 
@@ -221,6 +221,112 @@ class AC_Agent_Base():
                     data_plot.text(1,h, text)
                     h+=8
                 
+                writer.grab_frame()
+        plt.close()
+
+        if is_meta:
+            self.env.flags['train'] = True
+            self.env.flags['verbose'] = False
+
+
+    def test(self, sess, n=0):
+        episode_count = sess.run(self.global_episodes)
+        # embed()
+        s = self.env.reset()
+        self.reset_agent()
+        self.start_trial()
+
+        step = 0
+        
+        s = process_frame(s)
+        d = False
+        r = 0
+        episode_r = 0
+
+        is_meta = hasattr(self.env, 'flags')
+
+        if is_meta:
+            self.env.flags['train'] = False
+            self.env.flags['verbose'] = True
+
+        printing = False
+
+        frames = []
+        poses = []
+        
+        # embed()
+        while d == False and step < 20:
+            print("step ---- " + str(step))
+            a, v = self.sample_av(s, sess, r)
+        
+            s1,r,d = self.env.step(a)
+            episode_r += r
+            s = process_frame(s1)
+            step += 1
+
+            # embed()
+            # plt.ion()
+            if is_meta:
+                current_frame = self.env.get_frames()
+                current_pose = self.env.get_poses()
+                frames += current_frame
+                poses += current_pose
+            else:
+                data = ['r = ' + str(r),
+                        'd = ' + str(d),
+                        'v = ' + str(v),
+                        'a = ' + str(a),
+                        'step = ' + str(step),
+                        'cum_r = ' + str(episode_r)]
+                frames.append((s1, data))
+
+        plt.figure(1)
+        l=plt.imshow(frames[0][0])                    
+        
+        plt.figure(2)
+        plt.axis([0, 90, 0, 90])
+        
+        print('episode reward: ' + str(episode_r))
+        
+        for ((f, data),(y,x)) in zip(frames, poses):
+            plt.figure(1)
+            l.set_data(f)
+            plt.pause(0.00001)
+            
+            plt.figure(2)
+            plt.scatter(x,-y+90)
+            # plt.pause(0.00001)
+        plt.show()    
+        if not printing:
+            return
+
+        fig = plt.figure()
+        f, d = frames[0]
+        lf_sp = fig.add_subplot(121)
+        l = plt.imshow(f)
+        data_plot = fig.add_subplot(122)
+
+
+        plt.imshow(np.ones(f.shape))
+        plt.axis('off')
+
+        FFMpegWriter = manimation.writers['ffmpeg']
+        metadata = dict(title='Episode '+str(n), artist='Matplotlib',
+                        comment='Movie support!')
+        writer = FFMpegWriter(fps=15, metadata=metadata)
+
+        movie_path = self.movie_path + "episode_" + str(n) + ".mp4"
+        with writer.saving(fig, movie_path, 100):
+            for f, data in frames:
+                l.set_data(f)
+                
+                data_plot.cla()
+                data_plot.axis('off')
+
+                h = 3
+                for text in data:
+                    data_plot.text(1,h, text)
+                    h+=8
                 writer.grab_frame()
         plt.close()
 

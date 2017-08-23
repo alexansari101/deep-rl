@@ -68,7 +68,7 @@ def get_2lvl_HA3C(env_gen, num_workers, out_folder,
         workers = []
         
         for i in range(num_workers):
-            env_1 = GridGoal(env_gen(), grid_size)
+            env_1 = GridGoal(env_gen(v_max=0.1), grid_size)
             agent_1 = AC_rnn_ra_Worker(env_1, 'agent_1_'+str(i),
                                        trainer, out_folder, lp,
                                        hlvl=1)
@@ -128,7 +128,7 @@ def get_1lvl_ac_rnn(env_gen, num_workers, out_folder):
 
         workers = []
         for i in range(num_workers):
-            workers.append(AC_rnn_ra_Worker(env_gen(), 'agent_' + str(i),
+            workers.append(AC_rnn_ra_Worker(env_gen(v_max=0.1), 'agent_' + str(i),
                                             trainer, out_folder, lp))
         return workers
 

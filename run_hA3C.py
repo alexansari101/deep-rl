@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
+import matplotlib.pyplot as plt
 from util import dir_utils
-from agents.ac_worker import AC_Worker
+# from agents.ac_worker import AC_Worker
 import environments
 from environments.ac_rnn_ra_wrapper import AC_rnn_ra_Wrapper
 from environments import env_factory
@@ -15,7 +16,6 @@ from agents.ac_rnn_ra_network import AC_rnn_ra_Network
 from agents.ac_rnn_ra_worker import AC_rnn_ra_Worker
 from agents import H_Workers
 from IPython import embed
-import matplotlib.pyplot as plt
 
 
 def process_args(args):
@@ -51,10 +51,10 @@ def main():  # noqa: D103
 	args = parser.parse_args()
 	args = process_args(args)
 	
-	if not args.load:
+	if args.train and not args.load:
 		dir_utils.copy_files(args.output)
 	
-	if not args.tmp and not args.load:
+	if not args.tmp and args.train and not args.load:
 		dir_utils.write_readme(args.output)
 
 	# num_workers = multiprocessing.cpu_count() # number of available CPU threads
@@ -65,7 +65,8 @@ def main():  # noqa: D103
 	# workers = H_Workers.get_dummy_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
 	# workers = H_Workers.get_1lvl_ac_rnn(env_factory.get(args.env), num_workers, args.output)
 	# workers = H_Workers.get_1lvl_ac(env_factory.get(args.env), num_workers, args.output)
-	saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=5)
+	saver = tf.train.Saver(max_to_keep=10, keep_checkpoint_every_n_hours=2)
+	
 	with tf.Session() as sess:
 
 		if(args.load):
@@ -102,8 +103,7 @@ def main():  # noqa: D103
 			
 		if(args.test):
 			for i in range(1):
-				workers[0].evaluate(sess,i)
-
+				workers[0].test(sess,i)
 
 		if(args.play):
 			key_to_action = {'d':[0,1],
@@ -127,6 +127,8 @@ def main():  # noqa: D103
 					episode_r = 0
 					env.reset()
 					env.render()
+
+		
 				
 
 def loop_stepping(worker, coord):

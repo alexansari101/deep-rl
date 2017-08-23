@@ -19,7 +19,7 @@ Todo:
 import numpy as np
 import tensorflow as tf
 from util import update_target_graph, process_frame
-
+from IPython import embed
 
 class H_Env_Wrapper():
     """Wraps an AC agent with rnn support and meta-learning.
@@ -77,8 +77,9 @@ class H_Env_Wrapper():
                       'verbose':False}
         
         self.frames = [] #frames for saving movies
+        self.poses = [] #poses of the hero in each frame
         self.last_obs = []
-
+        self.last_pose = []
 
     # Runs after episode completion. Perform a training op. Update graphs.
     def reset(self):
@@ -90,6 +91,9 @@ class H_Env_Wrapper():
     def get_frames(self):
         return self.frames
     
+    def get_poses(self):
+        return self.poses
+
     def render(self):
         """Should render the env, currently not working"""
         return self.env.render()
@@ -98,6 +102,7 @@ class H_Env_Wrapper():
         """Returns the last observation."""
         return self.last_obs
 
+    
 
 
     #TODO Pull out tensor flow calculations from step, as a precursor to pulling out model from
@@ -113,7 +118,6 @@ class H_Env_Wrapper():
         """
 
 
-
         if self.sess is None: # I cannot init before the sess exists
             self.sess = tf.get_default_session()
             self.summary_writer.add_graph(self.sess.graph)
@@ -123,6 +127,7 @@ class H_Env_Wrapper():
         episode_buffer = []
         episode_values = []
         episode_frames = []
+        episode_poses = []
         episode_reward = 0
         episode_step_count = 0
         d = False
@@ -133,8 +138,8 @@ class H_Env_Wrapper():
 
         self.subgoal.set_meta_action(m_a)
         s = self.subgoal.augment_obs(s)
-        episode_frames.append((self.subgoal.visualize(s),['i_r  =  0', 'm_r  =  0', 'step = 0']))
-
+        # episode_frames.append((self.subgoal.visualize(s),['i_r  =  0', 'm_r  =  0', 'step = 0']))   
+        # episode_poses.append(self.last_pose)
 
 
         self.agent.start_trial()        
@@ -143,10 +148,11 @@ class H_Env_Wrapper():
             # network output.
             a,v = self.agent.sample_av(s, self.sess, i_r)
             s1,f,m_d = self.env.step(a)
+            pose = self.env.env.getHeroPosition()
+            # print(pose)
             self.last_obs = s1.copy()
             s1 = process_frame(s1)
             s1 = self.subgoal.augment_obs(s1)
-
 
 
 
@@ -168,15 +174,15 @@ class H_Env_Wrapper():
                     'v    = ' + str(v[0,0])]
                     
             episode_frames.append((self.subgoal.visualize(s1), data))
-
-                        
+            # print(pose[:2])
+            episode_poses.append(pose)
             episode_buffer.append([s,a,i_r,s1,d,v[0,0]])
             episode_values.append(v[0,0])
             episode_reward += i_r
             s = s1
             episode_step_count += 1
             self.total_step_count += 1
-                                        
+        
         self.episode_count += 1
         if(self.flags['verbose']):
             print('\ttotal intrisic episode reward: ' + str(episode_reward))
@@ -213,4 +219,6 @@ class H_Env_Wrapper():
         # ARA - todo: check if max meta-episodes is reached in meta-agent
         #       only send a done (m_d) signal if inner env. needs resetting.
         self.frames = episode_frames
+        # print(episode_poses)
+        self.poses  = episode_poses
         return self.last_obs, m_r, m_d 

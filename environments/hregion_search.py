@@ -57,6 +57,10 @@ class gameEnv():
         
         return self.renderEnv()
 
+    def getHeroPosition(self):
+        return self.hero[:2].tolist()
+
+
     def moveChar(self,accel):        
         self.hero_old = self.hero.copy()
         penalize = 0.0
@@ -124,6 +128,6 @@ class gameEnv():
             print(penalty)
             return state,(reward+penalty),done
         else:
-            return state,(reward+penalty),done        
+            return state,(reward+penalty),done
 
 
