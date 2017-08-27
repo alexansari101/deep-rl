@@ -16,7 +16,7 @@ from agents.ac_rnn_ra_network import AC_rnn_ra_Network
 from agents.ac_rnn_ra_worker import AC_rnn_ra_Worker
 from agents import H_Workers
 from IPython import embed
-
+import rospy
 
 def process_args(args):
 	""" Additional proccessing for args to load the correct folders for storage"""
@@ -142,6 +142,7 @@ def loop_stepping(worker, coord):
 		worker.env.step(0)
 			
 if __name__ == '__main__':
+	rospy.init_node('RL_agent', anonymous=True)
 	main()
 
 			

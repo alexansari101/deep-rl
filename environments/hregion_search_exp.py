@@ -60,7 +60,6 @@ class gameEnv():
     def getHeroPosition(self):
         return self.hero[:2].tolist()
 
-
     def moveChar(self,accel):        
         self.hero_old = self.hero.copy()
         penalize = 0.0

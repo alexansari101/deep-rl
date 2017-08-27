@@ -58,6 +58,9 @@ from datetime import timedelta
 
 from agents.ac_rnn_ra_network import AC_rnn_ra_Network
 
+import rospy
+from std_msgs.msg import String, Float32MultiArray
+
 class AC_Agent_Base():
     """Advantage actor-critic worker Interface.
 
@@ -79,7 +82,7 @@ class AC_Agent_Base():
             hlvl: hierarchy level (0 for highest lvl agent)
         """
         self.name = name
-
+        
         self.model_path = model_path
         self.trainer = trainer
 
@@ -230,6 +233,10 @@ class AC_Agent_Base():
 
 
     def test(self, sess, n=0):
+
+        pose_pub = rospy.Publisher('pose', Float32MultiArray, queue_size=1)        
+        print('............created_pose_publisher..................')
+
         episode_count = sess.run(self.global_episodes)
         # embed()
         s = self.env.reset()
@@ -271,6 +278,15 @@ class AC_Agent_Base():
                 current_pose = self.env.get_poses()
                 frames += current_frame
                 poses += current_pose
+                pose_msg=Float32MultiArray(data=np.array(current_pose).flatten())
+                pose_pub.publish(pose_msg)                 
+                
+                msg = rospy.wait_for_message("matrix", Float32MultiArray)  
+                print(msg)
+
+            
+    
+
             else:
                 data = ['r = ' + str(r),
                         'd = ' + str(d),
@@ -296,7 +312,18 @@ class AC_Agent_Base():
             plt.figure(2)
             plt.scatter(x,-y+90)
             # plt.pause(0.00001)
-        plt.show()    
+        
+
+        # pose_msg=Float32MultiArray(data=np.array(poses).flatten())
+        # pose_pub.publish(pose_msg)
+
+        # plt.show()    
+        
+
+
+
+
+
         if not printing:
             return
 
