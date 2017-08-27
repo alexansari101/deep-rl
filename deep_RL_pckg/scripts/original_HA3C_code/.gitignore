@@ -1,0 +1,4 @@
+model/*
+*.pyc
+trials/*
+tmp/*
