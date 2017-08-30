@@ -299,8 +299,8 @@ class AC_Agent_Base():
         plt.figure(1)
         l=plt.imshow(frames[0][0])                    
         
-        plt.figure(2)
-        plt.axis([0, 90, 0, 90])
+        # plt.figure(2)
+        # plt.axis([0, 90, 0, 90])
         
         print('episode reward: ' + str(episode_r))
         
@@ -309,9 +309,9 @@ class AC_Agent_Base():
             l.set_data(f)
             plt.pause(0.00001)
             
-            plt.figure(2)
-            plt.scatter(x,-y+90)
-            plt.pause(0.00001)
+            # plt.figure(2)
+            # plt.scatter(x,-y+90)
+            # plt.pause(0.00001)
         
 
         # pose_msg=Float32MultiArray(data=np.array(poses).flatten())

@@ -10,6 +10,7 @@ end
 if(opt.method==2)%Variance Reduction
     traj_utility = ys2;
 end
+
 if opt.method==3
     std = sqrt(fs2);
     

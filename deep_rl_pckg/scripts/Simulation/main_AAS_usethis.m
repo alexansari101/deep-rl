@@ -3,6 +3,9 @@
 %For Everything else, contact Elif Ayvali
 %% Initialization
 clc;close all;clear;
+if(~robotics.ros.internal.Global.isNodeActive)
+    rosinit()
+end
 
 %%%%%%%%%%%%%%%%Definition of Variables%%%%%%%%%%%%%%%%%%%%
 %xss (m x d):3-d organ grid
@@ -49,7 +52,7 @@ idxinit = 6600-70; % any random initial point
 %--------------------------------------------------------%
 %%%%%%%%%%%%%%%%initialize CE planner%%%%%%%%%%%%%%%%%%%%%%%
 [opt] = initialize_gen_traj_CE(opt,DomainBounds);
-opt.planner=1;
+opt.planner=3;
 if(opt.planner==1)
     display('Planner:Utility Maximization')
 end
@@ -58,9 +61,13 @@ if(opt.planner==2)
     display('Planner:Ergodic Coverage')
 end
 
+if(opt.planner==3)
+    display('Planner:Deep-RL agent')
+end
+
 %If you add a new method, don't forget to update EvaluateUtility.m
 
-opt.method=1;
+opt.method=2;
 if(opt.method==1)
     display('Method: Expected improvement')
 end
@@ -98,9 +105,9 @@ end
 GPRsave.ymusave=[];GPRsave.ys2save=[]; GPRsave.AFsave=[];
 opt.gp.posGP=[];opt.gp.kGP=[];sample_rate=5;
 %GP parameters
-opt.gp_model = struct('inf',@infExact, 'mean', @meanZero, 'cov', @covSEiso_noise, 'lik', @likGauss);
+opt.gp_model = struct('inf',@infExact, 'mean', @meanZero, 'cov', @covSEiso, 'lik', @likGauss);
 sn = 0.01; ell =8; sf = sqrt(1);Ncg=30; in_noise = 0;% try 50 to notice differece 
-opt.gp_para.lik = log(sn); opt.gp_para.cov = [log([ell; sf]);in_noise];
+opt.gp_para.lik = log(sn); opt.gp_para.cov = [log([ell; sf])];%in_noise];
 opt.gp.posGP=opt.xi(1:opt.dim,:)';
 opt.gp.kGP=EvaluateStiffnessKnn(opt.gp.posGP,xss,sGT);
 
@@ -136,7 +143,7 @@ GPRsave.AFsave(1,:)=opt.gp.AF(:);
 figure(1);set(gcf,'color','w');
 set(gcf, 'Position', [100, 400, 400, 400]);hold on;
 h1=color_line3(xss(:,1), xss(:,2), xss(:,3),ymu,'.');
-opt.ceFig_optimal=  draw_path(traj(opt.z, opt), 'r', 2, 5);
+opt.ceFig_optimal=  draw_path(traj(0*opt.z, opt), 'r', 2, 5);
 h1GP=scatter3(opt.gp.posGP(:,1),opt.gp.posGP(:,2),opt.gp.posGP(:,3),20,'filled','mo');
 axis equal
 axis([ DomainBounds.xmin DomainBounds.xmax DomainBounds.ymin DomainBounds.ymax])
@@ -169,20 +176,54 @@ axis([ DomainBounds.xmin DomainBounds.xmax DomainBounds.ymin DomainBounds.ymax])
 %--------------------------------------------------------%
 
 %% Receding-horizon trajectory planning
-
+traj_save=[];
 for k=1:opt.stages %number of iterations
     opt.currentStage = k
-    if k==15
-        opt.planner = 1
-        display('Switch Planner ---> Utility Maximization')
+    if(opt.planner==1 || opt.planner==2)
+        if k==15
+            opt.planner = 1;
+            display('Switch Planner ---> Utility Maximization')
+        end
+        if k == 1
+            opt.tf = 20;
+        else
+            opt.tf = 50;
+        end
+        [opt,xs_traj] = gen_traj_CE(opt);
+    elseif(opt.planner == 3)
+        
+        if(size(opt.gp.AF,2)==1)
+            a = sqrt(length(opt.gp.AF));
+            goal_mat = reshape(opt.gp.AF/max(max(opt.gp.AF)),[a,a]);
+        else
+            goal_mat = opt.gp.AF/max(max(opt.gp.AF));
+        end
+        goal_mat = imresize(goal_mat,[60, 60]);
+        goal_mat = flipud(goal_mat);
+%         imshow(goal_mat)
+        
+        % Call deepRL service
+        RLclient = rossvcclient('compute_traj');
+        msg = rosmessage(RLclient);
+        msg.AqFunction.Data=goal_mat(:);
+        pose = call(RLclient,msg);
+        pose_falattened = pose.PoseAgent.Data;
+
+        y_agent = pose_falattened(1:2:end-1);
+        x_agent = pose_falattened(2:2:end);
+        
+%         plot(x_agent,90-y_agent)
+%         axis([0 90 0 90])
+        y_agent=-y_agent+90;
+        %scale back to original size
+        y_agent = (y_agent-12)*150/60;
+        x_agent = (x_agent-12)*150/60;
+        
+        %Maintain same structure as the old trajectory sampling code
+        xs_traj = [x_agent,y_agent,zeros(size(x_agent,1),1),zeros(size(x_agent,1),1)]';
+
     end
-    if k == 1
-        opt.tf = 20;
-    else
-        opt.tf = 50;
-    end
-    [opt,xs_traj] = gen_traj_CE(opt);
-    
+    %%
     %Execute the trajectory
     if(opt.planner==1)
         %Utility Maximization: pick the best sample along the trajectory
@@ -196,25 +237,35 @@ for k=1:opt.stages %number of iterations
     
     if(opt.planner==2)
         %Ergodic coverage: pick multiple samples with fixed-sampling rate
-        posGP_new=xs_traj(1:opt.dim,2:20:end)';
+        posGP_new=xs_traj(1:opt.dim,end)';
         traj_save=[traj_save,xs_traj];
         %update the initial condition for trajectory
         xf=xs_traj(:,end);
         opt = accumulate_CK(opt, xs_traj);% updates CK of the whole trajectory (for efficient calculation)
     end
     
+    if(opt.planner==3)
+        %DeepRL agent: pick multiple samples with fixed-sampling rate
+        posGP_new=xs_traj(1:opt.dim,2:10:end)';
+        traj_save=[traj_save,xs_traj];
+        %update the initial condition for trajectory
+        xf=xs_traj(:,end);
+    end
+    
     opt.xi = xf;
+    
     %GPR update
-
     opt.gp.posGP=[opt.gp.posGP;posGP_new];
     kGP_new=EvaluateStiffnessKnn(posGP_new,xss,sGT);
     opt.gp.kGP= [opt.gp.kGP; kGP_new];
     %remove points that are too close to each other from the training set
     %[posGPfilt,kGPfilt]=consolidator(posGP,kGP,'max',2);%noise
     [ymu, ys2, fmu, fs2]= gp(opt.gp_para,opt.gp_model.inf, opt.gp_model.mean, opt.gp_model.cov, opt.gp_model.lik, opt.gp.posGP, opt.gp.kGP, xss);
+    
     if opt.method==3
         opt.method_obj.update(posGP_new, kGP_new);
     end
+    
     if opt.method==4
         opt.method_obj.update(posGP_new(:, 1:2), kGP_new);
     end
