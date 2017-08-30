@@ -1,17 +1,19 @@
+
 while(true)
 if(~robotics.ros.internal.Global.isNodeActive)
     rosinit()
 end
 %%
 %%%
-% load('goal_to_python.mat')
-% a = sqrt(length(goal));
-% 
-% goal_mat = reshape(goal,[a,a]);
-% goal_mat = imresize(goal_mat,[60, 60]);
-% goal_mat = flipud(goal_mat);
-% imshow(goal_mat)
-% 
+load('goal_to_python.mat')
+%%
+a = sqrt(length(goal));
+
+goal_mat = reshape(goal,[a,a]);
+goal_mat = imresize(goal_mat,[60, 60]);
+goal_mat = flipud(goal_mat);
+imshow(goal_mat)
+
 % %%%
 % 
 % msg = rosmessage('std_msgs/Float32MultiArray');
@@ -37,13 +39,18 @@ end
 % pause(4)
 
 % send(mat_pub,msg);
+traj = []
 %% service client 
 RLclient = rossvcclient('compute_traj');
-%%
-msg = rosmessage(RLclient);
-msg.AqFunction.Data=[1,1,1,1,1,1,1,1,12232323];
-pose = call(RLclient,msg)
-pose.PoseAgent.Data
 
-% rosgenmsg('src')
+msg = rosmessage(RLclient);
+msg.AqFunction.Data=goal_mat(:);
+pose = call(RLclient,msg)
+pose_falattened = pose.PoseAgent.Data;
+x = pose_falattened(1:2:end-1);
+y = pose_falattened(2:2:end);
+traj = [traj;x ];
+plot(x,y)
+
+% rosgenmsg('deep-rl')
 end

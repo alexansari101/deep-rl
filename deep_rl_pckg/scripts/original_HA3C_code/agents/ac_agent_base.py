@@ -232,14 +232,14 @@ class AC_Agent_Base():
             self.env.flags['verbose'] = False
 
 
-    def test(self, sess, n=0):
+    def test(self, sess, aqFunction, pose_init, n=0):
 
-        pose_pub = rospy.Publisher('pose', Float32MultiArray, queue_size=1)        
+        # pose_pub = rospy.Publisher('pose', Float32MultiArray, queue_size=1)        
         print('............created_pose_publisher..................')
 
         episode_count = sess.run(self.global_episodes)
         # embed()
-        s = self.env.reset()
+        s = self.env.reset(pose_init)
         self.reset_agent()
         self.start_trial()
 
@@ -262,7 +262,7 @@ class AC_Agent_Base():
         poses = []
         
         # embed()
-        while d == False and step < 20:
+        while d == False and step < 1:
             print("step ---- " + str(step))
             a, v = self.sample_av(s, sess, r)
         
@@ -279,8 +279,8 @@ class AC_Agent_Base():
                 frames += current_frame
                 poses += current_pose
                 pose_msg=Float32MultiArray(data=np.array(current_pose).flatten())
-                pose_pub.publish(pose_msg)                 
-                
+                # pose_pub.publish(pose_msg)                 
+                print(aqFunction)
                 # msg = rospy.wait_for_message("matrix", Float32MultiArray)  
                 # print(msg)
 
@@ -325,7 +325,7 @@ class AC_Agent_Base():
 
 
         if not printing:
-            return
+            return poses
 
         fig = plt.figure()
         f, d = frames[0]
@@ -360,3 +360,4 @@ class AC_Agent_Base():
         if is_meta:
             self.env.flags['train'] = True
             self.env.flags['verbose'] = False
+

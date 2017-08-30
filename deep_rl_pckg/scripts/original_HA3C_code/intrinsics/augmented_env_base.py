@@ -22,9 +22,9 @@ class Augmented_Env_Base():
         """Returns the raw, un-augmented observations and rewards"""
         return self.env.step(a)
 
-    def reset(self):
+    def reset(self, pose_init):
         """Resets the env and returns the raw-unaugmented observation"""
-        return self.env.reset()
+        return self.env.reset(pose_init)
     
     def set_meta_actions(self, m_a):
         raise Exception("NotImplementedException")

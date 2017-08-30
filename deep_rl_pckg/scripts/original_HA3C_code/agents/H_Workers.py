@@ -47,7 +47,7 @@ def get_2lvl_rnn_ra_x2(env_gen, num_workers, out_folder):
         return workers
 
 
-def get_2lvl_HA3C(env_gen, num_workers, out_folder,
+def get_2lvl_HA3C(sess, env_gen, num_workers, out_folder,
                   grid_size = (4,4)):
     """Returns a group hierarchical agent workers
     lvl 0 is AC
@@ -72,7 +72,7 @@ def get_2lvl_HA3C(env_gen, num_workers, out_folder,
             agent_1 = AC_rnn_ra_Worker(env_1, 'agent_1_'+str(i),
                                        trainer, out_folder, lp,
                                        hlvl=1)
-            env_0 = H_Env_Wrapper(agent_1, lp, model_path=out_folder)
+            env_0 = H_Env_Wrapper(sess, agent_1, lp, model_path=out_folder)
             
             agent_0 = AC_Worker(env_0, 'agent_0_'+str(i), m_trainer,
                                 out_folder, m_lp)

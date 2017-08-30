@@ -25,9 +25,6 @@ class main_callback:
 	def __init__(self):
 		self.sess=None
 		self.workers=None
-		self.currentPose = [40,40]
-		self.aqFunction = None
-
 	def process_args(self, args):
 		""" Additional proccessing for args to load the correct folders for storage"""
 		# if(args.load):
@@ -40,19 +37,16 @@ class main_callback:
 			
 		return args
 
+
+	
 	def callback_work(self,req):
-		# print(req.aqFunction)
+		print(req.aqFunction)
 		# embed()
-		
-		self.aqFunction = req.aqFunction
-		# self.workers[0].env.env.env.getHeroPosition()
-		poses = self.workers[0].test(self.sess,req.aqFunction, self.currentPose,0)
-		# embed()
-		self.currentPose = poses[-1]
-		# print(poses)
-		# pose_msg=Float32MultiArray(data=[1,2,3])
-		pose_msg=Float32MultiArray(data=np.array(poses).flatten())
+		self.workers[0].test(self.sess,req.aqFunction,0)
+		pose_msg=Float32MultiArray(data=[1,2,3])
 		return computeTrajResponse(pose_msg)
+
+
 
 	def main(self):  # noqa: D103
 		parser = argparse.ArgumentParser(description='Runs hA3C')
@@ -81,23 +75,21 @@ class main_callback:
 
 		if args.test:
 			args.env = args.env + "_exp"
+			
 		print(args.env)
+		# num_workers = multiprocessing.cpu_count() # number of available CPU threads
+		num_workers = 8 #Hardcode num-workers for consistency across machines
+		workers = H_Workers.get_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
+		self.workers = workers
+		# workers = H_Workers.get_2lvl_rnn_ra_x2(env_factory.get(args.env), num_workers, args.output)
+		# workers = H_Workers.get_dummy_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
+		# workers = H_Workers.get_1lvl_ac_rnn(env_factory.get(args.env), num_workers, args.output)
+		# workers = H_Workers.get_1lvl_ac(env_factory.get(args.env), num_workers, args.output)
 
-		# self.sess = tf.Session()
+		saver = tf.train.Saver(max_to_keep=10, keep_checkpoint_every_n_hours=2)
+
 		with tf.Session() as self.sess:
-			
-			# num_workers = multiprocessing.cpu_count() # number of available CPU threads
-			num_workers = 8 #Hardcode num-workers for consistency across machines
-			workers = H_Workers.get_2lvl_HA3C(self.sess, env_factory.get(args.env), num_workers, args.output)#Hadi: added sess as input cause it was creating problems when i added a service! will fix it later
-			self.workers = workers
-			# workers = H_Workers.get_2lvl_rnn_ra_x2(env_factory.get(args.env), num_workers, args.output)
-			# workers = H_Workers.get_dummy_2lvl_HA3C(env_factory.get(args.env), num_workers, args.output)
-			# workers = H_Workers.get_1lvl_ac_rnn(env_factory.get(args.env), num_workers, args.output)
-			# workers = H_Workers.get_1lvl_ac(env_factory.get(args.env), num_workers, args.output)
 
-			saver = tf.train.Saver(max_to_keep=10, keep_checkpoint_every_n_hours=2)
-
-			
 			if(args.load):
 				# print('Loading Model ' + args.output)
 				ckpt = tf.train.get_checkpoint_state(args.output)
@@ -136,7 +128,7 @@ class main_callback:
 				print ('Ready to compute_traj...')
 				rospy.spin()
 				# for i in range(1):
-				#   workers[0].test(self.sess,i)
+				#   workers[0].test(sess,i)
 
 			if(args.play):
 				key_to_action = {'d':[0,1],
@@ -159,7 +151,9 @@ class main_callback:
 						print('final state. Episode reward: ' + str(episode_r))
 						episode_r = 0
 						env.reset()
-						env.render()	
+						env.render()
+
+			
 					
 
 	def loop_stepping(self, worker, coord):

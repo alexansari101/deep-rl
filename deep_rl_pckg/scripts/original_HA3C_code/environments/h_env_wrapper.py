@@ -26,7 +26,7 @@ class H_Env_Wrapper():
 
     """
 
-    def __init__(self,agent, lp, model_path):
+    def __init__(self, sess, agent, lp, model_path):
         """Created an intermediate level environment in the hierarchy
         
         Args:
@@ -54,7 +54,7 @@ class H_Env_Wrapper():
         self.update_ival = lp['update_ival']
         self.gamma       = lp['gamma']
 
-        self.sess = None
+        self.sess = sess
         self.im = None
 
         self.episode_rewards = []
@@ -82,8 +82,8 @@ class H_Env_Wrapper():
         self.last_pose = []
 
     # Runs after episode completion. Perform a training op. Update graphs.
-    def reset(self):
-        self.last_obs = self.env.reset()
+    def reset(self,pose_init):
+        self.last_obs = self.env.reset(pose_init)
         self.agent.reset_agent()
         return self.last_obs
 
@@ -119,6 +119,7 @@ class H_Env_Wrapper():
 
 
         if self.sess is None: # I cannot init before the sess exists
+            # embed()
             self.sess = tf.get_default_session()
             self.summary_writer.add_graph(self.sess.graph)
         

@@ -2,10 +2,9 @@ import numpy as np
 import scipy.misc
 import matplotlib.pyplot as plt
 from .cregion import cRegion
-from IPython import embed    
+from IPython import embed        
 class gameEnv():
     """Environment definition for hierarchical RL"""
-    
     def __init__(self,v_max=1.0,a_max=1.0):        
         self.a_max = a_max
         self.v_max = v_max        
@@ -25,7 +24,7 @@ class gameEnv():
         self.observation_space.shape = (84,84,3)
 
 
-    def reset(self):
+    def reset(self, pose):
         self.state.fill(0)
         # add goals to background
         self.goals = []
@@ -44,21 +43,24 @@ class gameEnv():
             b.fill(0)
             reg = cRegion()
             b[:,:,1] = reg.image(size=[w,w],blur=2.5)
-            # embed()
+
         # reset hero location
         self.hero = np.random.randint(self.brdr+self.width+2,
                                       83-self.brdr-self.width,
                                       size=2).astype(float)
+        embed()
+        self.hero = np.array(pose)
         self.hero = np.append(self.hero,np.zeros(2))
             
         # add boarder
         brdr, b = self.brdr, self.state
         b[:brdr,:,0] = b[-brdr:,:,0] = b[:,:brdr,0] = b[:,-brdr:,0] = 255
-        # embed()
+        
         return self.renderEnv()
 
     def getHeroPosition(self):
         return self.hero[:2].tolist()
+
 
     def moveChar(self,accel):        
         self.hero_old = self.hero.copy()
@@ -130,4 +132,3 @@ class gameEnv():
             return state,(reward+penalty),done
 
 
- 
