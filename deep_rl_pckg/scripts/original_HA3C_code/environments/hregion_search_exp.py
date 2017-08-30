@@ -24,7 +24,7 @@ class gameEnv():
         self.observation_space.shape = (84,84,3)
 
 
-    def reset(self, pose):
+    def reset(self, pose, aqFunction):
         self.state.fill(0)
         # add goals to background
         self.goals = []
@@ -43,12 +43,12 @@ class gameEnv():
             b.fill(0)
             reg = cRegion()
             b[:,:,1] = reg.image(size=[w,w],blur=2.5)
-
+            b[:,:,1] = aqFunction
+            embed()
         # reset hero location
-        self.hero = np.random.randint(self.brdr+self.width+2,
-                                      83-self.brdr-self.width,
-                                      size=2).astype(float)
-        embed()
+        # self.hero = np.random.randint(self.brdr+self.width+2,
+        #                               83-self.brdr-self.width,
+        #                               size=2).astype(float)
         self.hero = np.array(pose)
         self.hero = np.append(self.hero,np.zeros(2))
             

@@ -239,7 +239,7 @@ class AC_Agent_Base():
 
         episode_count = sess.run(self.global_episodes)
         # embed()
-        s = self.env.reset(pose_init)
+        s = self.env.reset(pose_init, aqFunction)
         self.reset_agent()
         self.start_trial()
 
@@ -311,7 +311,7 @@ class AC_Agent_Base():
             
             plt.figure(2)
             plt.scatter(x,-y+90)
-            # plt.pause(0.00001)
+            plt.pause(0.00001)
         
 
         # pose_msg=Float32MultiArray(data=np.array(poses).flatten())

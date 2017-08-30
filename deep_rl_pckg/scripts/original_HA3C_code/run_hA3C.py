@@ -23,6 +23,7 @@ from std_msgs.msg import String, Float32MultiArray
 
 class main_callback:
 	def __init__(self):
+		
 		self.sess=None
 		self.workers=None
 		self.currentPose = [40,40]
@@ -43,10 +44,14 @@ class main_callback:
 	def callback_work(self,req):
 		# print(req.aqFunction)
 		# embed()
-		
 		self.aqFunction = req.aqFunction
-		# self.workers[0].env.env.env.getHeroPosition()
-		poses = self.workers[0].test(self.sess,req.aqFunction, self.currentPose,0)
+		embed()
+		utility = np.reshape(self.aqFunction.data,(60,60)).T
+		utility = 255*np.pad(utility,((6,6),(6,6)),'constant')
+		# plt.figure(1)
+		# plt.imshow(utility)		
+		# plt.show()
+		poses = self.workers[0].test(self.sess, utility, self.currentPose, 0)
 		# embed()
 		self.currentPose = poses[-1]
 		# print(poses)

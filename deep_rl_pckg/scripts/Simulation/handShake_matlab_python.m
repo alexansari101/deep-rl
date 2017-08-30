@@ -47,10 +47,10 @@ msg = rosmessage(RLclient);
 msg.AqFunction.Data=goal_mat(:);
 pose = call(RLclient,msg)
 pose_falattened = pose.PoseAgent.Data;
-x = pose_falattened(1:2:end-1);
-y = pose_falattened(2:2:end);
+y = pose_falattened(1:2:end-1);
+x = pose_falattened(2:2:end);
 traj = [traj;x ];
-plot(x,y)
-
+plot(x,90-y)
+axis([0 90 0 90])
 % rosgenmsg('deep-rl')
 end

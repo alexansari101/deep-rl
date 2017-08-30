@@ -82,8 +82,8 @@ class H_Env_Wrapper():
         self.last_pose = []
 
     # Runs after episode completion. Perform a training op. Update graphs.
-    def reset(self,pose_init):
-        self.last_obs = self.env.reset(pose_init)
+    def reset(self,pose_init, aqFunction):
+        self.last_obs = self.env.reset(pose_init, aqFunction)
         self.agent.reset_agent()
         return self.last_obs
 
