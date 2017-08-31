@@ -8,7 +8,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%
 while(true)
 if(~robotics.ros.internal.Global.isNodeActive)
-    rosinit()
+%     rosinit
+    rosinit('192.168.1.100')    
+    setenv('ROS_MASTER_URI','http://192.168.1.100:11311')
+    setenv('ROS_IP','192.168.1.101') %% this is the IP address of the machine running MATLAB
+    
+    getenv('ROS_MASTER_URI')
 end
 %%
 %%%
