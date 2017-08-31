@@ -1,4 +1,11 @@
-
+%%%%%%%%%%%%%%%%%%%%%%%%%
+%VERY IMPORANT: make sure to run this command in the foler where the
+%deep-rl package is in to install the necessary costum ROS messages and
+%services on the computer you are runnning from !
+%-----------------------
+%rosgenmsg('deep-rl')
+%-----------------------
+%%%%%%%%%%%%%%%%%%%%%%%%%
 while(true)
 if(~robotics.ros.internal.Global.isNodeActive)
     rosinit()
@@ -52,5 +59,5 @@ x = pose_falattened(2:2:end);
 traj = [traj;x ];
 plot(x,90-y)
 axis([0 90 0 90])
-% rosgenmsg('deep-rl')
+
 end
