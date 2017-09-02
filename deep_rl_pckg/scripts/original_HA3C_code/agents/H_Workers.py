@@ -60,7 +60,7 @@ def get_2lvl_HA3C(sess, env_gen, num_workers, out_folder,
         lp = {'lambda'            : 1,
               'gamma'             : .99,
               'update_ival'       : np.inf,
-              'max_episode_length': 40}
+              'max_episode_length': 20}
         
         m_trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
         trainer = tf.train.AdamOptimizer(learning_rate=0.00001) # beta1=0.99
