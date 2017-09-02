@@ -111,7 +111,8 @@ class AC_Worker(AC_Agent_Base):
                              self.local_AC.value], 
                             feed_dict={self.local_AC.inputs:[s]})
         a = np.random.choice(a_dist[0],p=a_dist[0])
-        a = np.argmax(a_dist == a)
+        # a = np.argmax(a_dist == a)
+        a = np.argmax(a_dist)
         return a,v
         
     def work(self,sess,coord,saver):

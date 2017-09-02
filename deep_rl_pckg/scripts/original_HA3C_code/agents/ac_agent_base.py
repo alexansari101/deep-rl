@@ -262,7 +262,7 @@ class AC_Agent_Base():
         poses = []
         
         # embed()
-        while d == False and step < 1:
+        while d == False and step < 2:
             print("step ---- " + str(step))
             a, v = self.sample_av(s, sess, r)
         
