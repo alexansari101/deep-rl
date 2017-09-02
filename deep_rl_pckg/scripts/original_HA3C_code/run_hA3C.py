@@ -26,7 +26,7 @@ class main_callback:
 		
 		self.sess=None
 		self.workers=None
-		self.currentPose = [40,40]
+		self.currentPose = [50,50]
 		self.aqFunction = None
 
 	def process_args(self, args):
@@ -45,13 +45,14 @@ class main_callback:
 		# print(req.aqFunction)
 		# embed()
 		self.aqFunction = req.aqFunction
-		embed()
+		# embed()
 		utility = np.reshape(self.aqFunction.data,(60,60)).T
 		utility = 255*np.pad(utility,((6,6),(6,6)),'constant')
 		# plt.figure(1)
 		# plt.imshow(utility)		
 		# plt.show()
 		poses = self.workers[0].test(self.sess, utility, self.currentPose, 0)
+		plt.close('all')
 		# embed()
 		self.currentPose = poses[-1]
 		# print(poses)

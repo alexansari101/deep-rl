@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.misc
+from scipy.ndimage import filters
 import matplotlib.pyplot as plt
 from .cregion import cRegion
 from IPython import embed        
@@ -44,7 +45,8 @@ class gameEnv():
             reg = cRegion()
             b[:,:,1] = reg.image(size=[w,w],blur=2.5)
             b[:,:,1] = aqFunction
-            embed()
+            b[:,:,1] = filters.gaussian_filter(b[:,:,1], 2.5, mode='nearest')
+            # embed()
         # reset hero location
         # self.hero = np.random.randint(self.brdr+self.width+2,
         #                               83-self.brdr-self.width,
