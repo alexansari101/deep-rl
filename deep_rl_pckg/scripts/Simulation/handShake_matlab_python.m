@@ -1,7 +1,19 @@
-
+%%%%%%%%%%%%%%%%%%%%%%%%%
+%VERY IMPORANT: make sure to run this command in the foler where the
+%deep-rl package is in to install the necessary costum ROS messages and
+%services on the computer you are runnning from !
+%-----------------------
+%rosgenmsg('deep-rl')
+%-----------------------
+%%%%%%%%%%%%%%%%%%%%%%%%%
 while(true)
 if(~robotics.ros.internal.Global.isNodeActive)
-    rosinit()
+%     rosinit
+    rosinit('192.168.1.100')    
+    setenv('ROS_MASTER_URI','http://192.168.1.100:11311')
+    setenv('ROS_IP','192.168.1.101') %% this is the IP address of the machine running MATLAB
+    
+    getenv('ROS_MASTER_URI')
 end
 %%
 %%%
@@ -52,5 +64,5 @@ x = pose_falattened(2:2:end);
 traj = [traj;x ];
 plot(x,90-y)
 axis([0 90 0 90])
-% rosgenmsg('deep-rl')
+
 end

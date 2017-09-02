@@ -1,4 +1,4 @@
-function [X,Y,G] = GenerateStiffnessMap(xRange,yRange,addnoise)
+function [X,Y,G] = GenerateStiffnessMap_prior(xRange,yRange,addnoise)
 [X,Y] = meshgrid(xRange,yRange);
 if (addnoise==1)
     n=0.05;
@@ -6,10 +6,10 @@ else
     n=0;
 end
 
-m=[100 50];
-s=200*eye(2);
-m2=[100 100];
-s2=200*eye(2);
+m=[80 40];
+s=400*eye(2);
+m2=[80 120];
+s2=400*eye(2);
 G1 = mvnpdf([X(:), Y(:)],m,s);
 G2 = mvnpdf([X(:), Y(:)],m2,s2);
 G=(G1+G2);
