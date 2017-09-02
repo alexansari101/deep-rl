@@ -1,10 +1,11 @@
-%Authors:Elif Ayvali and Yifei Ma, 2016
-%For Details of Active Area Search, contact Yifei Ma
-%For Everything else, contact Elif Ayvali
 %% Initialization
 clc;close all;clear;
 if(~robotics.ros.internal.Global.isNodeActive)
-    rosinit()
+    rosinit('192.168.1.100')    
+    setenv('ROS_MASTER_URI','http://192.168.1.100:11311')
+    setenv('ROS_IP','192.168.1.101') %% this is the IP address of the machine running MATLAB
+    
+    getenv('ROS_MASTER_URI')
 end
 
 %%%%%%%%%%%%%%%%Definition of Variables%%%%%%%%%%%%%%%%%%%%
@@ -36,6 +37,8 @@ yr=0:ydel:Ly-ydel;
 %%%%%%%%%%%%%%%%Generate Stiffness Map%%%%%%%%%%%%%%%%%%%%%
 addnoise=0;
 [X,Y,sGT] = GenerateStiffnessMap(xr,yr,addnoise);
+[X,Y,sGT_prior] = GenerateStiffnessMap_prior(xr,yr,addnoise);
+
 sGT = reshape(sGT,size(X));
 Z   = zeros(size(X)); %for 3D problem
 xss=[X(:),Y(:),Z(:)];
@@ -43,7 +46,8 @@ xss=[X(:),Y(:),Z(:)];
 datafull = [xss,sGT(:)];
 %--------------------------------------------------------%
 %%%%%%%%%%Initialize Prior Acquisition Function%%%%%%%%%%%%%
-opt.gp.AF = zeros(size(X));
+% opt.gp.AF = zeros(size(X));
+opt.gp.AF = sGT_prior;
 %--------------------------------------------------------%
 %%%%%%%%%%%%%%initialize robot position%%%%%%%%%%%%%%%%%%%%
 %Get te index of the position where AF is max
@@ -67,7 +71,7 @@ end
 
 %If you add a new method, don't forget to update EvaluateUtility.m
 
-opt.method=2;
+opt.method=1;
 if(opt.method==1)
     display('Method: Expected improvement')
 end
@@ -85,7 +89,7 @@ if(opt.method==4)
 end
 
 opt.xi = [xss(idxinit,:)'; -0.0*pi];%[pos;orientation]
-traj_save=opt.xi; %save trajectories
+traj_save=[]; %save trajectories
 %--------------------------------------------------------%
 %%%%%%%%%%%%%%%%initialize ergodicity%%%%%%%%%%%%%%%%%%%%%%%
 if(opt.planner==2)
@@ -106,10 +110,10 @@ GPRsave.ymusave=[];GPRsave.ys2save=[]; GPRsave.AFsave=[];
 opt.gp.posGP=[];opt.gp.kGP=[];sample_rate=5;
 %GP parameters
 opt.gp_model = struct('inf',@infExact, 'mean', @meanZero, 'cov', @covSEiso, 'lik', @likGauss);
-sn = 0.01; ell =8; sf = sqrt(1);Ncg=30; in_noise = 0;% try 50 to notice differece 
+sn = 0.01; ell = 14; sf = sqrt(1);Ncg=30; in_noise = 0;% try 50 to notice differece 
 opt.gp_para.lik = log(sn); opt.gp_para.cov = [log([ell; sf])];%in_noise];
-opt.gp.posGP=opt.xi(1:opt.dim,:)';
-opt.gp.kGP=EvaluateStiffnessKnn(opt.gp.posGP,xss,sGT);
+opt.gp.posGP=[]; %opt.xi(1:opt.dim,:)';
+opt.gp.kGP=[];%EvaluateStiffnessKnn(opt.gp.posGP,xss,sGT);
 
 if(opt.method==3)
     opt.level = 0.5;
@@ -141,10 +145,13 @@ GPRsave.AFsave(1,:)=opt.gp.AF(:);
 %--------------------------------------------------------%
 %%%%%%%%%%%%%%%%initialize figures%%%%%%%%%%%%%%%%%%%%%%%
 figure(1);set(gcf,'color','w');
+%--------------------------------------------------------%
+
+
 set(gcf, 'Position', [100, 400, 400, 400]);hold on;
 h1=color_line3(xss(:,1), xss(:,2), xss(:,3),ymu,'.');
 opt.ceFig_optimal=  draw_path(traj(0*opt.z, opt), 'r', 2, 5);
-h1GP=scatter3(opt.gp.posGP(:,1),opt.gp.posGP(:,2),opt.gp.posGP(:,3),20,'filled','mo');
+h1GP=scatter3(0,0,0,20,'filled','mo');
 axis equal
 axis([ DomainBounds.xmin DomainBounds.xmax DomainBounds.ymin DomainBounds.ymax])
 view(0,90)
@@ -153,7 +160,7 @@ figure(2);set(gcf,'color','w');
 set(gcf, 'Position', [500, 400, 400, 400]);hold on;
 h2=color_line3(xss(:,1), xss(:,2), xss(:,3),opt.gp.AF(:),'.') ;
 opt.ceFig_candidate= draw_path(rand(3,3), 'b',3, 5);    %plot trajectories inside cem
-h2GP=scatter3(opt.gp.posGP(:,1),opt.gp.posGP(:,2),opt.gp.posGP(:,3),20,'filled','mo');
+h2GP=scatter3(0,0,0,20,'filled','mo');
 axis equal
 axis([ DomainBounds.xmin DomainBounds.xmax DomainBounds.ymin DomainBounds.ymax])
 view(0,90)
@@ -178,6 +185,7 @@ axis([ DomainBounds.xmin DomainBounds.xmax DomainBounds.ymin DomainBounds.ymax])
 %% Receding-horizon trajectory planning
 traj_save=[];
 for k=1:opt.stages %number of iterations
+    pause
     opt.currentStage = k
     if(opt.planner==1 || opt.planner==2)
         if k==15
@@ -195,11 +203,15 @@ for k=1:opt.stages %number of iterations
         if(size(opt.gp.AF,2)==1)
             a = sqrt(length(opt.gp.AF));
             goal_mat = reshape(opt.gp.AF/max(max(opt.gp.AF)),[a,a]);
+            goal_mat(goal_mat>0.8)=100;
+            goal_mat(goal_mat<0.8)=0;
         else
             goal_mat = opt.gp.AF/max(max(opt.gp.AF));
+            goal_mat(goal_mat>0.8)=100;
+            goal_mat(goal_mat<0.8)=0;
         end
         goal_mat = imresize(goal_mat,[60, 60]);
-        goal_mat = flipud(goal_mat);
+        goal_mat = 0.2*flipud(goal_mat);
 %         imshow(goal_mat)
         
         % Call deepRL service
@@ -246,7 +258,7 @@ for k=1:opt.stages %number of iterations
     
     if(opt.planner==3)
         %DeepRL agent: pick multiple samples with fixed-sampling rate
-        posGP_new=xs_traj(1:opt.dim,2:10:end)';
+        posGP_new=xs_traj(1:opt.dim,1:20:end)';
         traj_save=[traj_save,xs_traj];
         %update the initial condition for trajectory
         xf=xs_traj(:,end);
@@ -304,10 +316,3 @@ for k=1:opt.stages %number of iterations
     GPRsave.AFsave(opt.stages+1,:)=opt.gp.AF(:);
     
 end
-
-
-
-
-
-
- 
