@@ -110,7 +110,7 @@ GPRsave.ymusave=[];GPRsave.ys2save=[]; GPRsave.AFsave=[];
 opt.gp.posGP=[];opt.gp.kGP=[];sample_rate=5;
 %GP parameters
 opt.gp_model = struct('inf',@infExact, 'mean', @meanZero, 'cov', @covSEiso, 'lik', @likGauss);
-sn = 0.01; ell = 14; sf = sqrt(1);Ncg=30; in_noise = 0;% try 50 to notice differece 
+sn = 0.01; ell = 15; sf = sqrt(1);Ncg=30; in_noise = 0;% try 50 to notice differece 
 opt.gp_para.lik = log(sn); opt.gp_para.cov = [log([ell; sf])];%in_noise];
 opt.gp.posGP=[]; %opt.xi(1:opt.dim,:)';
 opt.gp.kGP=[];%EvaluateStiffnessKnn(opt.gp.posGP,xss,sGT);
@@ -258,7 +258,7 @@ for k=1:opt.stages %number of iterations
     
     if(opt.planner==3)
         %DeepRL agent: pick multiple samples with fixed-sampling rate
-        posGP_new=xs_traj(1:opt.dim,1:20:end)';
+        posGP_new=xs_traj(1:opt.dim,1:10:end)';
         traj_save=[traj_save,xs_traj];
         %update the initial condition for trajectory
         xf=xs_traj(:,end);
